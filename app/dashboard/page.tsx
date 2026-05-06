@@ -44,7 +44,12 @@ export default function Dashboard() {
         const data = snap.data();
 
         // 🔥 ROUTE BASED ON ONBOARDING
-        if (!data?.onboardingComplete) {
+        if (!data) {
+          setLoading(false);
+          return
+        }
+
+        if (data.onboardingComplete ===false) {
           router.replace("/onboarding");
           return;
         }
