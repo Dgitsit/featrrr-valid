@@ -3,15 +3,17 @@
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { useRouter } from "next/navigation";
 
 export default function Dashboard() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (!user) {
-        window.location.replace("/login");
+        router.replace("/login");
         return;
       }
 
@@ -22,9 +24,9 @@ export default function Dashboard() {
         if (snap.exists()) {
           const data = snap.data();
 
-          // 🔥 SAFE REDIRECT LOGIC
+          // 🔥 SAFE REDIRECT (CLIENT ONLY)
           if (!data?.onboardingComplete) {
-            window.location.replace("/onboarding");
+            router.replace("/onboarding");
             return;
           }
 
@@ -33,28 +35,26 @@ export default function Dashboard() {
           setProfile({});
         }
       } catch (err) {
-        console.error("Dashboard error:", err);
+        console.error(err);
       } finally {
         setLoading(false);
       }
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [router]);
 
-  // 🔄 LOADING STATE
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-400 bg-black">
-        Loading dashboard...
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        Loading...
       </div>
     );
   }
 
-  // ❌ FAIL SAFE
   if (!profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-red-500 bg-black">
+      <div className="min-h-screen flex items-center justify-center bg-black text-red-500">
         Failed to load profile
       </div>
     );
@@ -67,9 +67,7 @@ export default function Dashboard() {
       <p>Email: {profile.email || "No email"}</p>
       <p>Status: {profile.subscriptionStatus || "inactive"}</p>
 
-      <div className="mt-6 text-sm text-gray-400">
-        ✅ Dashboard loaded successfully
-      </div>
+      <p className="mt-4 text-green-400">✅ Stable Dashboard</p>
     </div>
   );
 }
