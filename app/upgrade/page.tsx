@@ -9,45 +9,46 @@ export default function UpgradePage() {
   const [loading, setLoading] = useState(false);
 
   const handleUpgrade = async () => {
-    const user = auth.currentUser;
+  const user = auth.currentUser;
 
-    if (!user) {
-      alert("You must be logged in");
-      return;
-    }
+  if (!user) {
+    alert("You must be logged in");
+    return;
+  }
 
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      // 🔥 SET STATUS TO PENDING (SAFE WAY)
-      await createOrUpdateUserProfile(user.uid, {
-        subscriptionStatus: "pending",
-      });
+    await createOrUpdateUserProfile(user.uid, {
+      subscriptionStatus: "pending",
+    });
 
-      const res = await fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          plan,
-          userId: user.uid,
-          email: user.email,
-        }),
-      });
+    const res = await fetch("/api/create-checkout-session", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        plan: "monthly", // 🔥 make sure this is defined or hardcode for now
+        userId: user.uid,
+        email: user.email,
+      }),
+    });
 
-      const data = await res.json();
+    if (!res.ok) throw new Error("Request failed");
 
-      if (!data.url) throw new Error("No checkout URL");
+    const data = await res.json();
 
-      window.location.href = data.url;
-    } catch (err) {
-      console.error(err);
-      alert("Upgrade failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+    if (!data.url) throw new Error("No checkout URL");
+
+    window.location.href = data.url;
+  } catch (err) {
+    console.error(err);
+    alert("Upgrade failed");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-black text-white px-6">
