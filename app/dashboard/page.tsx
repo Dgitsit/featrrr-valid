@@ -12,6 +12,7 @@ export default function Dashboard() {
 
   const router = useRouter();
 
+  // 🔥 LOAD USER + PROFILE
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (u) => {
       if (!u) {
@@ -26,16 +27,9 @@ export default function Dashboard() {
         const snap = await getDoc(refDoc);
 
         if (snap.exists()) {
-          const data = snap.data();
-          setProfile(data);
-
-          // 🔥 SAFE ONBOARDING REDIRECT
-          if (data.onboardingComplete === false) {
-            router.replace("/onboarding");
-            return;
-          }
+          setProfile(snap.data());
         } else {
-          console.log("No profile found yet");
+          console.log("No profile found");
         }
       } catch (err) {
         console.error("Firestore error:", err);
@@ -46,6 +40,15 @@ export default function Dashboard() {
 
     return () => unsubscribe();
   }, [router]);
+
+  // 🔥 SAFE REDIRECT (AFTER DATA IS READY)
+  useEffect(() => {
+    if (!loading && profile) {
+      if (profile.onboardingComplete === false) {
+        router.replace("/onboarding");
+      }
+    }
+  }, [loading, profile, router]);
 
   if (loading) {
     return <div style={{ padding: 40 }}>Loading...</div>;
@@ -58,8 +61,7 @@ export default function Dashboard() {
       <p>User: {user?.email}</p>
 
       <p>
-        Profile status:{" "}
-        {profile ? "Loaded ✅" : "Not found ❌"}
+        Profile status: {profile ? "Loaded ✅" : "Not found ❌"}
       </p>
     </div>
   );
