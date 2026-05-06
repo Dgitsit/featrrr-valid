@@ -25,33 +25,25 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-white text-black antialiased`}>
-        {/* NAVBAR (shows on every page) */}
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-white text-black antialiased`}
+      >
+        {/* NAVBAR */}
         <Navbar />
 
         {/* PAGE CONTENT */}
-        <main className="flex-1">
-          {children}
-        </main>
+        <main className="flex-1">{children}</main>
+
+        {/* ✅ FOOTER (moved INSIDE return) */}
+        <footer className="mt-16 border-t border-gray-200 py-6 text-center text-xs text-gray-400">
+          <a href="/terms" className="mr-4 underline">
+            Terms
+          </a>
+          <a href="/privacy" className="underline">
+            Privacy
+          </a>
+        </footer>
       </body>
     </html>
   );
-  <html lang="en">
-  <body>
-
-    {children}
-
-    {/* 🔗 GLOBAL FOOTER */}
-    <footer className="mt-16 border-t border-gray-200 py-6 text-center text-xs text-gray-400">
-      <a href="/terms" className="mr-4 underline">
-        Terms
-      </a>
-      <a href="/privacy" className="underline">
-        Privacy
-      </a>
-    </footer>
-
-  </body>
-</html>
 }
-
