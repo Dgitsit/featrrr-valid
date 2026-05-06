@@ -22,14 +22,15 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
+      // 🔐 SIGN IN
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
         password
       );
 
-      // 🔥 FIXED: pass router into routeUser
-      window.location.href = "/dashboard"
+      // 🚀 ROUTE BASED ON PROFILE
+      await routeUser(userCredential.user, router);
 
     } catch (err) {
       console.error(err);
