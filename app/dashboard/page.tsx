@@ -3,57 +3,37 @@
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
-import { useRouter } from "next/navigation";
 
 export default function Dashboard() {
-  const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (u) => {
-      if (!u) {
-        router.replace("/login");
-        return;
-      }
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (!user) return;
 
-      setUser(u);
+      const ref = doc(db, "valid_profiles", user.uid);
+      const snap = await getDoc(ref);
 
-      try {
-        const refDoc = doc(db, "valid_profiles", u.uid);
-        const snap = await getDoc(refDoc);
-
-        if (snap.exists()) {
-          setProfile(snap.data());
-        } else {
-          console.log("No profile found yet");
-        }
-      } catch (err) {
-        console.error("Firestore error:", err);
-      } finally {
-        setLoading(false);
+      if (snap.exists()) {
+        setProfile(snap.data());
+      } else {
+        setProfile({});
       }
     });
 
     return () => unsubscribe();
-  }, [router]);
+  }, []);
 
-  if (loading) {
-    return <div style={{ padding: 40 }}>Loading...</div>;
+  if (!profile) {
+    return <div className="text-white p-10">Loading...</div>;
   }
 
   return (
-    <div style={{ padding: 40 }}>
-      <h1>DASHBOARD ✅</h1>
+    <div className="text-white p-10">
+      <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
 
-      <p>User: {user?.email}</p>
-
-      <p>
-        Profile status:{" "}
-        {profile ? "Loaded ✅" : "Not found ❌"}
-      </p>
+      <p>Email: {profile.email || "No email"}</p>
+      <p>Status: {profile.subscriptionStatus || "none"}</p>
     </div>
   );
 }
