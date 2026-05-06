@@ -29,7 +29,7 @@ export default function LoginPage() {
       );
 
       // 🔥 FIXED: pass router into routeUser
-      await routeUser(userCredential.user, router);
+      window.location.href = "/dashboard"
 
     } catch (err) {
       console.error(err);
