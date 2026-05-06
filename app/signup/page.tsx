@@ -30,13 +30,15 @@ export default function SignupPage() {
 
       const user = userCredential.user;
 
-      // 🔥 CREATE BASE PROFILE (ONLY ONCE)
+      // 🔥 CREATE BASE PROFILE
       await createOrUpdateUserProfile(user.uid, {
         email: user.email,
+        subscriptionStatus: "free", // 🔥 important
       });
 
-      // 🚀 SEND TO APPLY (YOUR ONBOARDING FLOW)
+      // 🚀 GO TO ONBOARDING
       router.push("/onboarding");
+
     } catch (err: any) {
       console.error("Signup error:", err);
       setError(err.message || "Something went wrong");
@@ -55,7 +57,6 @@ export default function SignupPage() {
 
         <form onSubmit={handleSignup} className="space-y-4">
           
-          {/* EMAIL */}
           <input
             type="email"
             placeholder="Email"
@@ -65,7 +66,6 @@ export default function SignupPage() {
             required
           />
 
-          {/* PASSWORD */}
           <input
             type="password"
             placeholder="Password"
@@ -75,12 +75,10 @@ export default function SignupPage() {
             required
           />
 
-          {/* ERROR */}
           {error && (
             <p className="text-red-500 text-sm text-center">{error}</p>
           )}
 
-          {/* SUBMIT */}
           <button
             type="submit"
             disabled={loading}

@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { routeUser } from "@/utils/routeUsers";
 
 export default function LoginPage() {
+  const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,7 +28,8 @@ export default function LoginPage() {
         password
       );
 
-      await routeUser(userCredential.user);
+      // 🔥 FIXED: pass router into routeUser
+      await routeUser(userCredential.user, router);
 
     } catch (err) {
       console.error(err);
