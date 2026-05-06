@@ -1,90 +1,40 @@
 "use client";
 
-import { useState } from "react";
-import { auth } from "@/lib/firebase";
-import { createOrUpdateUserProfile } from "@/lib/createUserProfile";
+import { auth, db } from "@/lib/firebase";
+import { doc, updateDoc } from "firebase/firestore";
+import { useRouter } from "next/navigation";
 
-export default function OnboardingPage() {
-  const [displayName, setDisplayName] = useState("");
-  const [instagram, setInstagram] = useState("");
-  const [loading, setLoading] = useState(false);
+export default function Onboarding() {
+  const router = useRouter();
 
-  const handleFinish = async () => {
+  const completeOnboarding = async () => {
     const user = auth.currentUser;
 
-    if (!user) {
-      alert("User not found");
-      return;
-    }
-
-    if (!displayName) {
-      alert("Please enter a display name");
-      return;
-    }
+    if (!user) return;
 
     try {
-      setLoading(true);
-
-      await createOrUpdateUserProfile(user.uid, {
-        displayName,
+      await updateDoc(doc(db, "valid_profiles", user.uid), {
         onboardingComplete: true,
-
-        // 👇 prepare for future features
-        socials: {
-          instagram: {
-            username: instagram || "",
-            verified: false,
-          },
-        },
       });
 
-      // 🚀 go to dashboard
-      window.location.href = "/dashboard";
+      console.log("✅ Onboarding completed");
 
+      router.push("/dashboard");
     } catch (err) {
-      console.error(err);
-      alert("Something went wrong");
-    } finally {
-      setLoading(false);
+      console.error("❌ Error completing onboarding:", err);
     }
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center px-6">
-      <div className="w-full max-w-md space-y-6">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white">
+      <h1 className="text-xl mb-6">Onboarding 🚀</h1>
 
-        <h1 className="text-2xl font-bold text-center">
-          Complete Your Profile
-        </h1>
-
-        {/* DISPLAY NAME */}
-        <input
-          type="text"
-          placeholder="Display Name"
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-          className="w-full p-3 rounded bg-zinc-800 border border-zinc-700"
-        />
-
-        {/* INSTAGRAM */}
-        <input
-          type="text"
-          placeholder="Instagram (optional)"
-          value={instagram}
-          onChange={(e) => setInstagram(e.target.value)}
-          className="w-full p-3 rounded bg-zinc-800 border border-zinc-700"
-        />
-
-        {/* BUTTON */}
-        <button
-          onClick={handleFinish}
-          disabled={loading}
-          className="w-full p-3 rounded bg-gradient-to-r from-purple-500 to-orange-400 font-semibold"
-        >
-          {loading ? "Saving..." : "Finish Onboarding"}
-        </button>
-
-      </div>
+      <button
+        onClick={completeOnboarding}
+        className="px-6 py-3 bg-green-500 rounded"
+      >
+        Finish Onboarding
+      </button>
     </div>
   );
 }
