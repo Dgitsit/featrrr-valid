@@ -42,8 +42,8 @@ export default function UpgradePage() {
       </h1>
 
       <p className="text-gray-400 text-center mt-4 max-w-md">
-        First brands discover you through Featrrr Valid —  
-        then they hire you with confidence.
+        Audiences follow trust. Brands discover you, evaluate your 
+        score and sponsor with confidence - powered by Featrrr Valid.  
       </p>
 
       {/* 🔥 PRICING TOGGLE */}
