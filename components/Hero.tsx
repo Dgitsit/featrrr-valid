@@ -1,92 +1,182 @@
-"use client";
+// app/page.tsx
+import Hero from "@/components/Hero";
 
-import Image from "next/image";
-import Link from "next/link";
+export default function Home() {
+  return (
+    <main className="bg-black text-white">
 
-export default function Hero() {
-  return (
-    <section className="w-full bg-black text-white">
-      <div className="max-w-6xl mx-auto px-6 py-20 grid md:grid-cols-2 gap-12 items-center">
+      <Hero />
 
-        {/* LEFT SIDE */}
-        <div className="flex flex-col justify-center">
-          <h1 className="text-4xl md:text-5xl font-bold leading-tight">
-            Build trust. Grow faster.
-            <br />
-            <span className="bg-gradient-to-r from-purple-500 to-orange-400 bg-clip-text text-transparent">
-              Get Verified with Featrrr Valid
-            </span>
-          </h1>
+      {/* HOW IT WORKS */}
+      <section className="px-6 py-20 max-w-6xl">
+        <h2 className="text-2xl font-semibold mb-10">
+          How Featrrr Valid Works
+        </h2>
 
-          <p className="mt-6 text-gray-400 text-lg">
-            Audiences follow creators they trust.  
-            Brands evaluate your score and sponsor with confidence.
-          </p>
+        <div className="grid md:grid-cols-3 gap-10 text-left">
+          <div>
+            <h3 className="font-semibold mb-2">1. Show Transparency</h3>
+            <p className="text-gray-400 text-sm">
+              Creators choose to disclose and operate with accountability.
+            </p>
+          </div>
 
-          <div className="mt-8 flex gap-4 flex-wrap">
-            <Link href="/login">
-              <button className="px-6 py-3 rounded-full bg-gradient-to-r from-purple-500 to-orange-400 text-white hover:opacity-90 transition">
-                Start Your Valid Profile
-              </button>
-            </Link>
+          <div>
+            <h3 className="font-semibold mb-2">2. Build Trust Score</h3>
+            <p className="text-gray-400 text-sm">
+              Your activity and consistency translate into a visible score.
+            </p>
+          </div>
 
-            <Link href="/verify">
-              <button className="px-6 py-3 rounded-full border border-gray-600 hover:bg-gray-800 transition">
-                Search Creators
-              </button>
-            </Link>
-          </div>
-        </div>
+          <div>
+            <h3 className="font-semibold mb-2">3. Get Chosen</h3>
+            <p className="text-gray-400 text-sm">
+              Brands and audiences use your score to decide who to trust.
+            </p>
+          </div>
+        </div>
+      </section>
 
-        {/* RIGHT SIDE (CARD + BENEFITS) */}
-        <div className="flex flex-col items-center">
+      {/* VALUE SECTION */}
+      <section className="px-6 py-20 max-w-6xl">
+        <h2 className="text-2xl font-semibold mb-10">
+          Why It Matters
+        </h2>
 
-          {/* CREATOR CARD */}
-          <div className="w-[320px] bg-[#111] rounded-xl p-4 shadow-2xl border border-gray-800">
+        <div className="grid md:grid-cols-2 gap-12">
 
-            <div className="w-full h-[200px] rounded bg-gray-800 overflow-hidden mb-3">
-              <Image
-                src="https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e"
-                alt="creator"
-                width={320}
-                height={200}
-                className="object-cover w-full h-full"
-              />
-            </div>
+          <div>
+            <h3 className="font-semibold mb-2">
+              Stand out instantly
+            </h3>
+            <p className="text-gray-400 text-sm">
+              Your profile communicates credibility before you even speak.
+            </p>
+          </div>
 
-            <h3 className="text-center font-semibold">@jesscreates</h3>
+          <div>
+            <h3 className="font-semibold mb-2">
+              Turn trust into growth
+            </h3>
+            <p className="text-gray-400 text-sm">
+              Higher trust leads to more engagement and stronger followings.
+            </p>
+          </div>
 
-            {/* SCORE */}
-            <div className="mt-3 text-center">
-              <span className="text-sm text-gray-400">Trust Score</span>
-              <div className="text-2xl font-bold text-white drop-shadow-[0_0_10px_rgba(168,85,247,0.6)]">
-                93/100
-              </div>
-              <div className="text-xs text-green-400 mt-1">
-                +12 this month
-              </div>
-            </div>
+          <div>
+            <h3 className="font-semibold mb-2">
+              Close deals faster
+            </h3>
+            <p className="text-gray-400 text-sm">
+              Brands skip uncertainty and move straight to working with you.
+            </p>
+          </div>
 
-            {/* BAR */}
-            <div className="w-full bg-gray-700 h-2 rounded mt-2">
-              <div className="h-2 rounded bg-gradient-to-r from-purple-500 to-orange-400 w-[93%]" />
-            </div>
+          <div>
+            <h3 className="font-semibold mb-2">
+              Build long-term credibility
+            </h3>
+            <p className="text-gray-400 text-sm">
+              Your score compounds over time as you stay consistent.
+            </p>
+          </div>
 
-            {/* BRAND PROOF */}
-            <div className="mt-4 text-xs text-gray-400 text-center">
-              Trusted by brands like Nike • Beats • Fashion Nova
-            </div>
-          </div>
+        </div>
+      </section>
 
-          {/* BENEFITS */}
-          <div className="mt-6 space-y-2 text-sm text-gray-300 text-center">
-            <p>✅ Your audience trust and engagement scale</p>
-            <p>✅ Followers grow</p>
-            <p>✅ Brands sponsor confidently</p>
-          </div>
+      {/* TRUST FLOW (your messaging refined) */}
+      <section className="px-6 py-20 max-w-5xl">
+        <h2 className="text-2xl font-semibold mb-6">
+          The Real Growth Loop
+        </h2>
 
-        </div>
-      </div>
-    </section>
-  );
+        <p className="text-gray-400 text-lg max-w-xl">
+          Audiences follow people they trust.  
+          Brands discover you, evaluate your score, and sponsor with confidence.  
+          Your credibility becomes your growth engine.
+        </p>
+      </section>
+
+      {/* PRICING */}
+      <section className="px-6 py-20 max-w-6xl">
+        <h2 className="text-2xl font-semibold mb-10">
+          Get Verified
+        </h2>
+
+        <div className="grid md:grid-cols-2 gap-8">
+
+          {/* MONTHLY */}
+          <div className="border border-gray-800 rounded-xl p-6">
+            <h3 className="text-lg font-semibold mb-2">
+              Monthly
+            </h3>
+
+            <p className="text-3xl font-bold mb-4">
+              $39.99
+              <span className="text-sm text-gray-400"> / month</span>
+            </p>
+
+            <ul className="text-sm text-gray-400 space-y-2 mb-6">
+              <li>✔ Featrrr Valid score</li>
+              <li>✔ Verified badge</li>
+              <li>✔ Transparency tracking</li>
+            </ul>
+
+            <a href="/login">
+              <button className="w-full py-2 rounded bg-gradient-to-r from-purple-500 to-orange-400">
+                Get Started
+              </button>
+            </a>
+          </div>
+
+          {/* YEARLY */}
+          <div className="border border-purple-500 rounded-xl p-6">
+            <h3 className="text-lg font-semibold mb-2">
+              Yearly
+            </h3>
+
+            <p className="text-3xl font-bold mb-4">
+              $285
+              <span className="text-sm text-gray-400"> / year</span>
+            </p>
+
+            <p className="text-green-400 text-sm mb-4">
+              Save over $180 annually
+            </p>
+
+            <ul className="text-sm text-gray-400 space-y-2 mb-6">
+              <li>✔ Everything in monthly</li>
+              <li>✔ Priority credibility boost</li>
+              <li>✔ Best value</li>
+            </ul>
+
+            <a href="/login">
+              <button className="w-full py-2 rounded bg-gradient-to-r from-purple-500 to-orange-400">
+                Go Yearly
+              </button>
+            </a>
+          </div>
+
+        </div>
+      </section>
+
+      {/* FINAL CTA */}
+      <section className="px-6 py-20 max-w-5xl">
+        <h2 className="text-2xl font-semibold mb-4">
+          Start building trust today
+        </h2>
+
+        <p className="text-gray-400 mb-6">
+          The creators who win long term are the ones people believe.
+        </p>
+
+        <a href="/login">
+          <button className="px-8 py-3 rounded bg-gradient-to-r from-purple-500 to-orange-400">
+            Create Your Valid Profile
+          </button>
+        </a>
+      </section>
+
+    </main>
+  );
 }
