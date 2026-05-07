@@ -1,117 +1,90 @@
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  serverTimestamp,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-export async function createOrUpdateUserProfile(
-  userId: string,
-  updates: any = {}
-) {
-  const ref = doc(db, "valid_profiles", userId);
-  const snap = await getDoc(ref);
+type ProfileUpdateResult = {
+  created?: boolean;
+  updated?: boolean;
+  scoreAdded: number;
+} | null;
 
-  // 🔥 BASE PROFILE (NEW USERS ONLY)
-  const baseProfile = {
-    displayName: "",
-    email: "",
-    photoURL: "",
+export const createOrUpdateUserProfile = async (
+  userId: string,
+  data: any = {}
+): Promise<ProfileUpdateResult> => {
+  try {
+    const ref = doc(db, "valid_profiles", userId);
+    const snap = await getDoc(ref);
 
-    plan: "free",
-    score: 75,
+    let scoreAdded = 0;
 
-    subscriptionStatus: "inactive",
-    stripeCustomerId: null,
+    // 🆕 CREATE USER
+    if (!snap.exists()) {
+      await setDoc(ref, {
+        email: data.email || "",
+        displayName: "",
+        onboardingComplete: false,
+        subscriptionStatus: "free",
+        score: 60,
+        photoURL: "",
+        socials: {
+          instagram: {
+            username: "",
+            verified: false,
+            verificationCode: "",
+          },
+        },
+        createdAt: serverTimestamp(),
+        lastActiveAt: serverTimestamp(),
+        ...data,
+      });
 
-    onboardingComplete: false,
-    joinedAt: new Date(),
-    lastActiveAt: new Date(), // 🔥 ACTIVITY TRACKING
+      return { created: true, scoreAdded: 0 };
+    }
 
-    badgeNumber: Math.floor(100000 + Math.random() * 900000),
+    const existing = snap.data();
 
-    socials: {
-      instagram: {
-        username: "",
-        verified: false,
-        verificationCode: "",
-      },
-    },
+    // 🔥 SCORING LOGIC
 
-    persistentDisclosures: {},
-    custom: {},
+    // Onboarding bonus
+    if (
+      data.onboardingComplete === true &&
+      !existing?.onboardingComplete
+    ) {
+      scoreAdded += 3;
+    }
 
-    flags: 0,
-    updatedAt: new Date(),
-  };
+    // Photo bonus
+    if (data.photoURL && !existing?.photoURL) {
+      scoreAdded += 2;
+    }
 
-  // 🔥 CREATE USER IF NOT EXISTS
-  if (!snap.exists()) {
-    await setDoc(ref, {
-      ...baseProfile,
-      ...updates,
-      updatedAt: new Date(),
-      lastActiveAt: new Date(),
-    });
+    // Instagram verification bonus
+    if (
+      data["socials.instagram.verified"] === true &&
+      !existing?.socials?.instagram?.verified
+    ) {
+      scoreAdded += 5;
+    }
 
-    return {
-      scoreAdded: 0,
-    };
-  }
+    // 🔄 UPDATE USER (SAFE — preserves nested data)
+    await updateDoc(ref, {
+      ...data,
+      lastActiveAt: serverTimestamp(),
+      ...(scoreAdded > 0 && {
+        score: (existing?.score || 60) + scoreAdded,
+      }),
+    });
 
-  const existing = snap.data();
+    return { updated: true, scoreAdded };
 
-  let newScore = existing.score || 75;
-  let scoreAdded = 0;
-
-  // 🔥 DISPLAY NAME BOOST (+2)
-  if (
-    updates.displayName &&
-    (!existing.displayName || existing.displayName === "")
-  ) {
-    newScore += 2;
-    scoreAdded += 2;
-  }
-
-  // 🔥 PROFILE PHOTO BOOST (+3)
-  if (
-    updates.photoURL &&
-    (!existing.photoURL || existing.photoURL === "")
-  ) {
-    newScore += 3;
-    scoreAdded += 3;
-  }
-
-  // 🔥 ACTIVITY REFRESH BOOST (+1)
-  const isOnlyActivityRefresh =
-    Object.keys(updates).length === 0;
-
-  const lastActive = existing.lastActiveAt
-    ? new Date(existing.lastActiveAt)
-    : null;
-
-  const now = new Date();
-
-  if (isOnlyActivityRefresh && lastActive) {
-    const diffHours =
-      (now.getTime() - lastActive.getTime()) / (1000 * 60 * 60);
-
-    // Only reward if >24h since last activity
-    if (diffHours > 24) {
-      newScore += 1;
-      scoreAdded += 1;
-    }
-  }
-
-  // 🔥 FINAL MERGE UPDATE
-  await setDoc(
-    ref,
-    {
-      ...updates,
-      score: newScore,
-      lastActiveAt: new Date(), // 🔥 ALWAYS UPDATE ACTIVITY
-      updatedAt: new Date(),
-    },
-    { merge: true }
-  );
-
-  return {
-    scoreAdded,
-  };
-}
+  } catch (err) {
+    console.error("Create/Update error:", err);
+    return null;
+  }
+};

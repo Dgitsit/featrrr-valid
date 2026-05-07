@@ -1,35 +1,59 @@
-export function applyScoreDecay(profile: any) {
-  const now = Date.now();
+// lib/score.ts
 
-  const lastActive = profile?.lastActiveAt
-    ? new Date(profile.lastActiveAt).getTime()
-    : now;
+type Profile = {
+  score?: number;
+  lastActiveAt?: any; // Firestore timestamp or Date
+};
 
-  const daysInactive = Math.floor(
-    (now - lastActive) / (1000 * 60 * 60 * 24)
-  );
+export const applyScoreDecay = (profile: Profile) => {
+  // 🟢 BASE SCORE
+  const baseScore = profile?.score ?? 60;
 
-  const decayStart = 60; // days
-  const decayRate = 2; // per week
+  const lastActive = profile?.lastActiveAt;
 
-  let score = profile?.score ?? 75;
+  // If no activity tracked yet → no decay
+  if (!lastActive) {
+    return {
+      score: baseScore,
+      isDecaying: false,
+      daysUntilDecay: 60,
+    };
+  }
 
-  let isDecaying = false;
-  let daysUntilDecay = Math.max(0, decayStart - daysInactive);
+  // 🔄 Convert Firestore timestamp → JS Date
+  const lastDate =
+    typeof lastActive.toDate === "function"
+      ? lastActive.toDate()
+      : new Date(lastActive);
 
-  if (daysInactive > decayStart) {
-    isDecaying = true;
+  const now = new Date();
 
-    const weeksDecaying = Math.floor(
-      (daysInactive - decayStart) / 7
-    );
+  const diffMs = now.getTime() - lastDate.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    score = Math.max(0, score - weeksDecaying * decayRate);
-  }
+  // 🔥 DECAY STARTS AFTER 60 DAYS
+  const decayStart = 60;
 
-  return {
-    score,
-    isDecaying,
-    daysUntilDecay,
-  };
-}
+  if (diffDays <= decayStart) {
+    return {
+      score: baseScore,
+      isDecaying: false,
+      daysUntilDecay: decayStart - diffDays,
+    };
+  }
+
+  // 🔻 DECAY LOGIC
+  const daysPast = diffDays - decayStart;
+  const weeksInactive = Math.floor(daysPast / 7);
+
+  const decayAmount = weeksInactive * 2;
+
+  // 🔒 FLOOR AT 50
+  const finalScore = Math.max(50, baseScore - decayAmount);
+
+  return {
+    score: finalScore,
+    isDecaying: true,
+    daysUntilDecay: 0,
+  };
+};

@@ -5,8 +5,6 @@ import { auth, db, storage } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import html2canvas from "html2canvas";
-
-import { createOrUpdateUserProfile } from "@/lib/createUserProfile";
 import { applyScoreDecay } from "@/lib/score";
 import Badge from "@/components/Badge";
 
@@ -17,27 +15,29 @@ export default function Dashboard() {
 
   const cardRef = useRef<HTMLDivElement>(null);
 
-  // 🔥 LOAD USER + PROFILE (NO ROUTING HERE)
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+    const unsub = auth.onAuthStateChanged(async (user) => {
       if (!user) {
-        setLoading(false);
+        window.location.href = "/login";
         return;
       }
 
       try {
-        const refDoc = doc(db, "valid_profiles", user.uid);
-        let snap = await getDoc(refDoc);
+        const snap = await getDoc(doc(db, "valid_profiles", user.uid));
 
-        // AUTO CREATE PROFILE
         if (!snap.exists()) {
-          await createOrUpdateUserProfile(user.uid, {
-            email: user.email,
-          });
-          snap = await getDoc(refDoc);
+          window.location.href = "/onboarding";
+          return;
         }
 
-        setProfile(snap.data());
+        const data = snap.data();
+
+        if (!data?.onboardingComplete) {
+          window.location.href = "/onboarding";
+          return;
+        }
+
+        setProfile(data);
       } catch (err) {
         console.error(err);
       } finally {
@@ -45,18 +45,15 @@ export default function Dashboard() {
       }
     });
 
-    return () => unsubscribe();
+    return () => unsub();
   }, []);
 
-  // 🔥 SCORE
   const scoreData = applyScoreDecay(profile || {});
-  const score = scoreData?.score ?? 75;
+  const score = scoreData?.score ?? 60;
 
-  // 🔥 PHOTO UPLOAD
   const handleUpload = async (e: any) => {
     const file = e.target.files?.[0];
     const user = auth.currentUser;
-
     if (!file || !user) return;
 
     try {
@@ -64,59 +61,60 @@ export default function Dashboard() {
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
 
-      const result = await createOrUpdateUserProfile(user.uid, {
-        photoURL: url,
-      });
-
       setProfile((prev: any) => ({
         ...prev,
         photoURL: url,
-        score: (prev.score || 75) + (result?.scoreAdded || 0),
       }));
 
-      if (result?.scoreAdded > 0) {
-        setFeedback(`+${result.scoreAdded} score for adding a profile photo`);
-        setTimeout(() => setFeedback(""), 3000);
-      }
+      setFeedback("Profile photo updated");
+      setTimeout(() => setFeedback(""), 3000);
     } catch (err) {
       console.error(err);
     }
   };
 
-  // 🔥 SHARE
   const handleGenerateImage = async () => {
     if (!cardRef.current) return;
 
     const canvas = await html2canvas(cardRef.current);
     const dataUrl = canvas.toDataURL("image/png");
 
-    const res = await fetch(dataUrl);
-    const blob = await res.blob();
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = "featrrr-valid-card.png";
+    link.click();
+  };
 
-    const file = new File([blob], "featrrr-card.png", {
-      type: "image/png",
-    });
+  // 🔥 COPY BADGE
+  const handleCopyBadge = () => {
+    if (!profile?.badgeNumber) return;
+    navigator.clipboard.writeText(String(profile.badgeNumber));
+    setFeedback("Badge number copied");
+    setTimeout(() => setFeedback(""), 2000);
+  };
 
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: "Featrrr Valid",
-          files: [file],
-        });
-      } catch {}
-    } else {
-      const link = document.createElement("a");
-      link.href = dataUrl;
-      link.download = "featrrr-valid-card.png";
-      link.click();
+  // 🔥 COPY / SHARE VERIFY LINK
+  const handleShareLink = async () => {
+    if (!profile?.badgeNumber) return;
+
+    const url = `${window.location.origin}/verify/${profile.badgeNumber}`;
+
+    try {
+      await navigator.share({
+        title: "Verify me on Featrrr Valid",
+        url,
+      });
+    } catch {
+      navigator.clipboard.writeText(url);
+      setFeedback("Verification link copied");
+      setTimeout(() => setFeedback(""), 2000);
     }
   };
 
-  // 🔄 LOADING
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center text-gray-400">
-        Loading profile...
+        Loading...
       </div>
     );
   }
@@ -134,37 +132,70 @@ export default function Dashboard() {
     profile.email?.split("@")[0] ||
     "user";
 
-  return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center py-10">
+  const isActive = profile.subscriptionStatus === "active";
 
-      {/* CARD */}
+  return (
+    <div className="min-h-screen bg-black text-white flex flex-col items-center py-10 px-4">
+
+      {/* VERIFIED BANNER */}
+      {isActive && (
+        <div className="mb-4 px-4 py-2 bg-green-500/10 border border-green-500/30 rounded text-green-400 text-sm text-center">
+          ✔ You are a verified Featrrr Valid creator
+        </div>
+      )}
+
+      {/* PROFILE CARD */}
       <div
         ref={cardRef}
-        className="w-[320px] bg-[#111] rounded-xl overflow-hidden shadow-lg p-4 text-center"
+        className="w-[320px] bg-[#111] rounded-xl p-4 text-center shadow-lg"
       >
-        <div className="w-full h-[200px] bg-gray-800 rounded-md mb-4 overflow-hidden flex items-center justify-center">
+        {/* PHOTO */}
+        <div className="w-full h-[200px] bg-gray-800 rounded mb-4 flex items-center justify-center overflow-hidden">
           {profile.photoURL ? (
-            <img src={profile.photoURL} className="w-full h-full object-cover" />
+            <img
+              src={profile.photoURL}
+              className="w-full h-full object-cover"
+            />
           ) : (
             "No Photo"
           )}
         </div>
 
+        {/* NAME */}
         <h2 className="text-lg font-semibold">@{username}</h2>
 
-        <div className="flex justify-center gap-2 mt-2">
-          {profile.subscriptionStatus === "active" && (
-            <Badge type="premium" />
-          )}
+        {/* 🔥 BADGE + ACTIONS */}
+        <div className="mt-2 flex flex-col items-center gap-2">
+          <span className="text-xs text-gray-500">
+            Badge #{profile.badgeNumber || "—"}
+          </span>
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleCopyBadge}
+              className="text-xs px-2 py-1 rounded bg-gray-800 hover:bg-gray-700"
+            >
+              Copy Badge
+            </button>
+
+            <button
+              onClick={handleShareLink}
+              className="text-xs px-2 py-1 rounded bg-gradient-to-r from-purple-500 to-orange-400"
+            >
+              Share Link
+            </button>
+          </div>
+        </div>
+
+        {/* BADGES */}
+        <div className="flex justify-center gap-2 mt-3">
+          {isActive && <Badge type="premium" />}
           {profile?.socials?.instagram?.verified && (
             <Badge type="verified" />
           )}
         </div>
 
-        <div className="mt-2 text-sm text-gray-400">
-          {profile.subscriptionStatus === "active" ? "Premium" : "Free"}
-        </div>
-
+        {/* SCORE */}
         <div className="mt-3 text-sm">{score}/100</div>
 
         <div className="w-full bg-gray-700 h-2 rounded mt-1">
@@ -174,6 +205,7 @@ export default function Dashboard() {
           />
         </div>
 
+        {/* SOCIAL */}
         {profile?.socials?.instagram?.username && (
           <div className="mt-3 text-sm text-pink-400">
             @{profile.socials.instagram.username}
@@ -181,23 +213,12 @@ export default function Dashboard() {
         )}
       </div>
 
+      {/* FEEDBACK */}
       {feedback && (
         <p className="text-green-400 text-sm mt-4">{feedback}</p>
       )}
 
-      {scoreData?.daysUntilDecay <= 5 &&
-        scoreData?.daysUntilDecay > 0 && (
-          <p className="text-yellow-400 text-xs mt-2 text-center">
-            Your score will start decreasing in {scoreData.daysUntilDecay} days
-          </p>
-        )}
-
-      {scoreData?.isDecaying && (
-        <p className="text-red-400 text-xs mt-2 text-center">
-          Your score is decreasing due to inactivity
-        </p>
-      )}
-
+      {/* UPLOAD */}
       <input
         type="file"
         accept="image/*"
@@ -205,27 +226,72 @@ export default function Dashboard() {
         className="mt-4 text-sm"
       />
 
+      {/* SHARE CARD */}
       <button
         onClick={handleGenerateImage}
-        className="mt-6 px-6 py-2 rounded bg-gradient-to-r from-purple-500 to-orange-400"
+        className="mt-4 px-6 py-2 rounded bg-gradient-to-r from-purple-500 to-orange-400"
       >
         Share Your Valid Card
       </button>
 
-      {profile.subscriptionStatus !== "active" && (
-        <>
-          <div className="mt-6 text-sm text-gray-400 text-center max-w-sm">
-            Verified creators stand out more, build trust faster, and unlock higher visibility.
-          </div>
+      {/* SUBSCRIPTION UI */}
+      <div className="mt-8 w-full max-w-md bg-[#111] rounded-xl p-5">
 
+        <h2 className="text-sm text-gray-400 mb-3">
+          Subscription
+        </h2>
+
+        <div className="flex justify-between mb-2">
+          <span className="text-gray-400 text-sm">Plan</span>
+          <span>{isActive ? "Pro" : "Free"}</span>
+        </div>
+
+        <div className="flex justify-between mb-4">
+          <span className="text-gray-400 text-sm">Status</span>
+          <span
+            className={`text-sm ${
+              isActive
+                ? "text-green-400"
+                : profile.subscriptionStatus === "canceled"
+                ? "text-yellow-400"
+                : "text-gray-400"
+            }`}
+          >
+            {isActive
+              ? "Active"
+              : profile.subscriptionStatus === "canceled"
+              ? "Ends soon"
+              : "Inactive"}
+          </span>
+        </div>
+
+        <div className="w-full bg-gray-700 h-2 rounded mb-4">
+          <div
+            className={`h-2 rounded ${
+              isActive
+                ? "bg-gradient-to-r from-purple-500 to-orange-400 w-full"
+                : "bg-gray-500 w-1/4"
+            }`}
+          />
+        </div>
+
+        {!isActive ? (
           <button
             onClick={() => (window.location.href = "/upgrade")}
-            className="mt-4 px-6 py-2 rounded bg-gradient-to-r from-purple-500 to-orange-400"
+            className="w-full py-2 rounded bg-gradient-to-r from-purple-500 to-orange-400"
           >
             Upgrade to Featrrr Valid
           </button>
-        </>
-      )}
+        ) : (
+          <button
+            onClick={() => (window.location.href = "/settings")}
+            className="w-full py-2 rounded bg-white text-black"
+          >
+            Manage Subscription
+          </button>
+        )}
+      </div>
+
     </div>
   );
 }

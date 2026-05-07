@@ -34,15 +34,19 @@ export default function SearchPage() {
     loadUsers();
   }, []);
 
-  // 🔍 FILTER
+  // 🔍 FILTER (NAME + BADGE ONLY)
   useEffect(() => {
-    const q = query.toLowerCase();
+    const q = query.toLowerCase().trim();
+    const cleanQuery = q.replace("#", "");
 
     const results = users.filter((user) => {
       const name = user.displayName?.toLowerCase() || "";
-      const email = user.email?.toLowerCase() || "";
+      const badge = String(user.badgeNumber || "");
 
-      return name.includes(q) || email.includes(q);
+      return (
+        name.includes(q) ||
+        badge.includes(cleanQuery)
+      );
     });
 
     setFiltered(results);
@@ -63,17 +67,17 @@ export default function SearchPage() {
       {/* 🔍 SEARCH INPUT */}
       <div className="max-w-xl mx-auto mb-8">
         <input
-          placeholder="Search creators..."
+          placeholder="Search by name or badge #..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="w-full p-3 rounded-lg bg-gray-900 border border-gray-800 text-white"
         />
       </div>
 
-      {/* ❌ EMPTY STATE */}
+      {/* ❌ EMPTY */}
       {filtered.length === 0 && (
         <div className="text-center text-gray-400 mt-20">
-          This creator isn’t on Featrrr Valid. Creators who choose transparency stand out.
+          No creators found. Try searching by name or badge number.
         </div>
       )}
 
@@ -82,7 +86,6 @@ export default function SearchPage() {
         {filtered.map((user) => {
           const username =
             user.displayName ||
-            user.email?.split("@")[0] ||
             "user";
 
           const score = user.score ?? 0;
@@ -94,6 +97,20 @@ export default function SearchPage() {
             >
               {/* USERNAME */}
               <h3 className="text-lg font-semibold">@{username}</h3>
+
+              {/* 🔥 BADGE NUMBER */}
+              {user.badgeNumber && (
+                <p
+                  onClick={() =>
+                    navigator.clipboard.writeText(
+                      String(user.badgeNumber)
+                    )
+                  }
+                  className="text-xs text-gray-500 mt-1 cursor-pointer hover:text-white"
+                >
+                  Badge #{user.badgeNumber} (tap to copy)
+                </p>
+              )}
 
               {/* 🔥 BADGES */}
               <div className="flex gap-2 mt-2">
@@ -130,6 +147,7 @@ export default function SearchPage() {
           );
         })}
       </div>
+
     </main>
   );
 }

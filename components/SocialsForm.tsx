@@ -74,7 +74,7 @@ export default function SocialsForm({ userId }: { userId: string }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // 🔥 VERIFY + SHARE HOOK
+  // 🔥 VERIFY + SCORE
   const handleVerify = async () => {
     setLoading(true);
 
@@ -86,11 +86,12 @@ export default function SocialsForm({ userId }: { userId: string }) {
       setVerified(true);
       setPending(false);
 
-      if (result?.scoreAdded > 0) {
+      // ✅ FIXED SAFE ACCESS
+      if (result && result.scoreAdded > 0) {
         alert(`+${result.scoreAdded} score`);
       }
 
-      // 🔥 VIRAL SHARE TRIGGER
+      // 🔥 EVENT (optional future use)
       window.dispatchEvent(new Event("featrrr:verified"));
 
     } catch (err) {
@@ -104,7 +105,7 @@ export default function SocialsForm({ userId }: { userId: string }) {
   return (
     <div className="bg-[#111] p-5 rounded-xl w-full max-w-md">
 
-      {/* 🔥 PLATFORM SWITCH */}
+      {/* PLATFORM SWITCH */}
       <div className="flex gap-2 mb-5">
         {["instagram", "tiktok", "youtube"].map((p) => (
           <button
@@ -126,10 +127,6 @@ export default function SocialsForm({ userId }: { userId: string }) {
       </h2>
 
       {/* STEP 1 */}
-      <p className="text-sm text-gray-400 mb-2">
-        Step 1: Enter your {platform} username
-      </p>
-
       <input
         value={username}
         onChange={(e) => setUsername(e.target.value)}
@@ -137,7 +134,6 @@ export default function SocialsForm({ userId }: { userId: string }) {
         className="w-full px-3 py-2 rounded bg-black border border-gray-700 mb-4"
       />
 
-      {/* GENERATE */}
       {!code && (
         <button
           onClick={handleGenerate}
@@ -147,13 +143,8 @@ export default function SocialsForm({ userId }: { userId: string }) {
         </button>
       )}
 
-      {/* STEP 2–4 */}
       {code && !verified && (
         <div className="mt-4">
-
-          <p className="text-sm text-gray-400 mb-2">
-            Step 2: Copy this code
-          </p>
 
           <div className="flex justify-between items-center bg-black border border-gray-700 px-3 py-2 rounded">
             <span className="text-sm">{code}</span>
@@ -166,19 +157,6 @@ export default function SocialsForm({ userId }: { userId: string }) {
             </button>
           </div>
 
-          <p className="text-xs text-gray-500 mt-3">
-            Step 3: Paste it in your {platform} bio
-          </p>
-
-          {/* 🔥 VISUAL EXAMPLE */}
-          <div className="mt-3 bg-black border border-gray-700 rounded p-3 text-xs text-gray-400">
-            Bio example:
-            <br />
-            <span className="text-white">Creator | NYC</span>
-            <br />
-            <span className="text-green-400">{code}</span>
-          </div>
-
           <button
             onClick={handleVerify}
             disabled={loading}
@@ -189,7 +167,6 @@ export default function SocialsForm({ userId }: { userId: string }) {
         </div>
       )}
 
-      {/* STATES */}
       {pending && !verified && (
         <p className="text-yellow-400 text-xs mt-3">
           Verification pending...

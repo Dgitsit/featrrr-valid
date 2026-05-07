@@ -1,12 +1,39 @@
- "use client";
+"use client";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { auth } from "@/lib/firebase";
-import { signOut } from "firebase/auth";
+import { auth, db } from "@/lib/firebase";
+import { signOut, onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import Button from "@/components/ui/Button";
 
 export default function Navbar() {
   const router = useRouter();
+
+  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      setUser(u);
+
+      if (u) {
+        try {
+          const snap = await getDoc(doc(db, "valid_profiles", u.uid));
+          if (snap.exists()) {
+            setProfile(snap.data());
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      } else {
+        setProfile(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -17,26 +44,54 @@ export default function Navbar() {
     }
   };
 
+  const displayName =
+    profile?.displayName ||
+    user?.email?.split("@")[0] ||
+    "";
+
   return (
     <nav className="w-full flex justify-between items-center px-6 py-4 bg-black text-white border-b border-gray-800">
 
       {/* LEFT */}
-      <div className="font-bold text-lg">
+      <Link href="/" className="font-bold text-lg">
         Featrrr
-      </div>
+      </Link>
 
       {/* RIGHT */}
-      <div className="flex gap-4 items-center">
+      <div className="flex gap-3 items-center">
 
-        <Link href="/dashboard">Dashboard</Link>
-        <Link href="/profile">Profile</Link>
+        {user ? (
+          <>
+            {/* NAV LINKS */}
+            <Link href="/dashboard" className="text-sm text-gray-300 hover:text-white">
+              Dashboard
+            </Link>
 
-        <button
-          onClick={handleLogout}
-          className="px-3 py-1 rounded bg-red-500 text-white text-sm"
-        >
-          Logout
-        </button>
+            {/* USER NAME */}
+            <span className="text-sm text-gray-400">
+              @{displayName}
+            </span>
+
+            {/* LOGOUT */}
+            <Button variant="danger" onClick={handleLogout}>
+              Logout
+            </Button>
+          </>
+        ) : (
+          <>
+            <Link href="/login">
+              <Button variant="ghost">
+                Login
+              </Button>
+            </Link>
+
+            <Link href="/signup">
+              <Button>
+                Sign Up
+              </Button>
+            </Link>
+          </>
+        )}
 
       </div>
     </nav>

@@ -8,7 +8,6 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { plan, userId, email } = body;
 
-    // 🚨 VALIDATION
     if (!plan || !userId) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -16,7 +15,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔥 PRICE SELECTION
     const priceId =
       plan === "monthly"
         ? process.env.STRIPE_MONTHLY_PRICE_ID
@@ -29,11 +27,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🚀 CREATE SESSION
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
-
-      payment_method_types: ["card"],
 
       customer_email: email || undefined,
 
@@ -44,28 +39,25 @@ export async function POST(req: Request) {
         },
       ],
 
-      // 🔥 CRITICAL FOR WEBHOOK USER MATCH
+      // 🔥 THIS IS WHAT YOU ADD
       metadata: {
         userId,
+        plan,
+        app: "featrrr-valid",
       },
 
-      // 🔥 BACKUP IDENTIFIER
       client_reference_id: userId,
 
-      // 🔥 UPDATED FLOW (NO APPLY PAGE)
       success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/onboarding`,
+      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/upgrade`,
 
-      // 🔥 IMPROVES UX
       allow_promotion_codes: true,
     });
 
-    return NextResponse.json({
-      url: session.url,
-    });
+    return NextResponse.json({ url: session.url });
 
-  } catch (err: any) {
-    console.error("❌ Checkout session error:", err);
+  } catch (err) {
+    console.error("❌ Checkout error:", err);
 
     return NextResponse.json(
       { error: "Internal Server Error" },

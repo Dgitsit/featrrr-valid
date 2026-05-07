@@ -10,7 +10,6 @@ export async function POST(req: NextRequest) {
   const body = await req.text();
   const sig = req.headers.get("stripe-signature");
 
-  // 🔴 MUST have signature
   if (!sig) {
     return NextResponse.json({ error: "Missing signature" }, { status: 400 });
   }
@@ -29,16 +28,22 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // ================================
+    // =====================================
     // ✅ CHECKOUT COMPLETED
-    // ================================
+    // =====================================
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
 
-      console.log("🔥 Checkout session:", session);
+      // 🔥 PROTECTION: ONLY HANDLE FEATRRR VALID
+      if (session.metadata?.app !== "featrrr-valid") {
+        return NextResponse.json({ received: true });
+      }
 
-      const userId = session.metadata?.userId;
+      const userId =
+        session.metadata?.userId || session.client_reference_id;
+
       const customerId = session.customer as string;
+      const subscriptionId = session.subscription as string;
 
       if (!userId) {
         console.error("❌ Missing userId in metadata");
@@ -47,21 +52,10 @@ export async function POST(req: NextRequest) {
 
       await adminDb.collection("valid_profiles").doc(userId).set(
         {
-          // 🔥 subscription info
           subscriptionStatus: "active",
           stripeCustomerId: customerId,
+          stripeSubscriptionId: subscriptionId,
           plan: "pro",
-
-          // 🔥 base structure (prevents broken docs)
-          score: 75,
-          onboardingComplete: false,
-          joinedAt: new Date(),
-
-          socials: {},
-          persistentDisclosures: {},
-          custom: {},
-
-          flags: 0,
           updatedAt: new Date(),
         },
         { merge: true }
@@ -70,9 +64,9 @@ export async function POST(req: NextRequest) {
       console.log("✅ User upgraded:", userId);
     }
 
-    // ================================
+    // =====================================
     // 🔄 SUBSCRIPTION UPDATED
-    // ================================
+    // =====================================
     if (event.type === "customer.subscription.updated") {
       const subscription = event.data.object as Stripe.Subscription;
 
@@ -84,21 +78,22 @@ export async function POST(req: NextRequest) {
         .where("stripeCustomerId", "==", customerId)
         .get();
 
-      if (!snapshot.empty) {
-        const doc = snapshot.docs[0];
-
+      snapshot.forEach(async (doc) => {
         await doc.ref.update({
-          subscriptionStatus: status === "active" ? "active" : "inactive",
+          subscriptionStatus:
+            status === "active"
+              ? "active"
+              : status === "past_due"
+              ? "past_due"
+              : "inactive",
           updatedAt: new Date(),
         });
-
-        console.log("🔄 Subscription updated:", customerId, status);
-      }
+      });
     }
 
-    // ================================
+    // =====================================
     // ❌ SUBSCRIPTION CANCELLED
-    // ================================
+    // =====================================
     if (event.type === "customer.subscription.deleted") {
       const subscription = event.data.object as Stripe.Subscription;
 
@@ -109,22 +104,41 @@ export async function POST(req: NextRequest) {
         .where("stripeCustomerId", "==", customerId)
         .get();
 
-      if (!snapshot.empty) {
-        const doc = snapshot.docs[0];
-
+      snapshot.forEach(async (doc) => {
         await doc.ref.update({
           subscriptionStatus: "inactive",
           plan: "free",
           updatedAt: new Date(),
         });
+      });
+    }
 
-        console.log("❌ Subscription cancelled:", customerId);
-      }
+    // =====================================
+    // ⚠️ PAYMENT FAILED
+    // =====================================
+    if (event.type === "invoice.payment_failed") {
+      const invoice = event.data.object as Stripe.Invoice;
+
+      const customerId = invoice.customer as string;
+
+      const snapshot = await adminDb
+        .collection("valid_profiles")
+        .where("stripeCustomerId", "==", customerId)
+        .get();
+
+      snapshot.forEach(async (doc) => {
+        await doc.ref.update({
+          subscriptionStatus: "past_due",
+          updatedAt: new Date(),
+        });
+      });
     }
 
     return NextResponse.json({ received: true });
+
   } catch (err) {
     console.error("❌ Webhook handler error:", err);
     return NextResponse.json({ error: "Webhook failed" }, { status: 500 });
   }
 }
+
