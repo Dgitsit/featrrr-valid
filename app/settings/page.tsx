@@ -1,165 +1,141 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { auth, db } from "@/lib/firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import Button from "@/components/ui/Button";
-import Link from "next/link";
+import { useState } from "react";
+import { auth } from "@/lib/firebase";
 
 export default function SettingsPage() {
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  const [displayName, setDisplayName] = useState("");
+  // 🔥 CANCEL SUBSCRIPTION
+  const handleCancel = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
 
-  useEffect(() => {
-    const load = async () => {
-      const user = auth.currentUser;
-      if (!user) return;
+    const confirmCancel = confirm(
+      "Are you sure you want to cancel your subscription?"
+    );
 
-      const snap = await getDoc(doc(db, "valid_profiles", user.uid));
-      if (snap.exists()) {
-        const data = snap.data();
-        setProfile(data);
-        setDisplayName(data.displayName || "");
+    if (!confirmCancel) return;
+
+    try {
+      setLoading(true);
+
+      const res = await fetch("/api/cancel-subscription", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: user.uid,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        alert("Subscription will cancel at end of billing period");
+      } else {
+        alert("Failed to cancel subscription");
       }
 
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong");
+    } finally {
       setLoading(false);
-    };
-
-    load();
-  }, []);
-
-  const handleSaveProfile = async () => {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    await updateDoc(doc(db, "valid_profiles", user.uid), {
-      displayName,
-    });
-
-    alert("Profile updated");
+    }
   };
 
-  // 🔥 CANCEL SUBSCRIPTION (soft cancel)
-  const handleCancelSubscription = async () => {
+  // 🔥 DELETE ACCOUNT
+  const handleDelete = async () => {
     const user = auth.currentUser;
     if (!user) return;
 
-    const confirm = window.confirm(
-      "Cancel your subscription? You will lose premium status."
+    const confirmDelete = confirm(
+      "This will permanently delete your account. Continue?"
     );
 
-    if (!confirm) return;
+    if (!confirmDelete) return;
 
-    await updateDoc(doc(db, "valid_profiles", user.uid), {
-      subscriptionStatus: "canceled",
-    });
+    try {
+      setLoading(true);
 
-    alert("Subscription canceled");
-    window.location.reload();
+      const res = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: user.uid,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        await auth.signOut();
+        window.location.href = "/";
+      } else {
+        alert("Failed to delete account");
+      }
+
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong");
+    } finally {
+      setLoading(false);
+    }
   };
-
-  // 🔥 OPT OUT
-  const handleOptOut = async () => {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const confirm = window.confirm(
-      "Opt out of Featrrr Valid? Your profile will no longer be publicly trusted."
-    );
-
-    if (!confirm) return;
-
-    await updateDoc(doc(db, "valid_profiles", user.uid), {
-      status: "opted_out",
-    });
-
-    alert("You have opted out");
-    window.location.reload();
-  };
-
-  if (loading) {
-    return <div className="p-6">Loading...</div>;
-  }
 
   return (
-    <div className="min-h-screen bg-black text-white p-6 max-w-2xl mx-auto space-y-10">
+    <main className="min-h-screen bg-black text-white flex flex-col items-center py-16 px-6">
 
-      <h1 className="text-2xl font-bold">Settings</h1>
+      <h1 className="text-3xl font-bold mb-10">
+        Settings
+      </h1>
 
-      {/* 🔹 PROFILE */}
-      <section className="bg-[#111] p-5 rounded-xl">
-        <h2 className="font-semibold mb-4">Profile</h2>
+      <div className="w-full max-w-md space-y-6">
 
-        <input
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-          placeholder="Display Name"
-          className="w-full p-3 rounded bg-zinc-800 border border-zinc-700 mb-4"
-        />
+        {/* CANCEL SUB */}
+        <div className="bg-[#111] p-5 rounded-xl">
+          <h2 className="text-lg font-semibold mb-2">
+            Subscription
+          </h2>
 
-        <Button onClick={handleSaveProfile}>
-          Save Profile
-        </Button>
-      </section>
+          <p className="text-sm text-gray-400 mb-4">
+            Manage or cancel your Featrrr Valid subscription
+          </p>
 
-      {/* 🔹 SOCIALS */}
-      <section className="bg-[#111] p-5 rounded-xl">
-        <h2 className="font-semibold mb-4">Social Verification</h2>
+          <button
+            onClick={handleCancel}
+            disabled={loading}
+            className="w-full py-2 rounded bg-yellow-500 text-black"
+          >
+            {loading ? "Processing..." : "Cancel Subscription"}
+          </button>
+        </div>
 
-        <p className="text-sm text-gray-400 mb-4">
-          Verify your accounts to increase trust score
-        </p>
+        {/* DELETE ACCOUNT */}
+        <div className="bg-[#111] p-5 rounded-xl border border-red-500/30">
+          <h2 className="text-lg font-semibold mb-2 text-red-400">
+            Danger Zone
+          </h2>
 
-        <Link href="/dashboard">
-          <Button variant="secondary">
-            Manage Socials
-          </Button>
-        </Link>
-      </section>
+          <p className="text-sm text-gray-400 mb-4">
+            Permanently delete your account and all associated data
+          </p>
 
-      {/* 🔹 SUBSCRIPTION */}
-      <section className="bg-[#111] p-5 rounded-xl">
-        <h2 className="font-semibold mb-4">Subscription</h2>
+          <button
+            onClick={handleDelete}
+            disabled={loading}
+            className="w-full py-2 rounded bg-red-600"
+          >
+            {loading ? "Deleting..." : "Delete Account"}
+          </button>
+        </div>
 
-        <p className="text-sm text-gray-400 mb-4">
-          Status:{" "}
-          <span className="text-white">
-            {profile?.subscriptionStatus || "free"}
-          </span>
-        </p>
+      </div>
 
-        {profile?.subscriptionStatus === "active" && (
-          <Button variant="danger" onClick={handleCancelSubscription}>
-            Cancel Subscription
-          </Button>
-        )}
-
-        {profile?.subscriptionStatus !== "active" && (
-          <Link href="/upgrade">
-            <Button>
-              Upgrade to Valid
-            </Button>
-          </Link>
-        )}
-      </section>
-
-      {/* 🔹 ACCOUNT CONTROL */}
-      <section className="bg-[#111] p-5 rounded-xl">
-        <h2 className="font-semibold mb-4 text-red-400">
-          Account Control
-        </h2>
-
-        <p className="text-sm text-gray-400 mb-4">
-          Opting out removes your trust status and visibility.
-        </p>
-
-        <Button variant="danger" onClick={handleOptOut}>
-          Opt Out of Featrrr Valid
-        </Button>
-      </section>
-
-    </div>
+    </main>
   );
 }
