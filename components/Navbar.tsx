@@ -52,13 +52,15 @@ export default function Navbar() {
   return (
     <nav className="w-full flex justify-between items-center px-6 md:px-12 py-4 bg-black text-white border-b border-gray-800">
 
-      {/* LEFT (LOGO) */}
+      {/* LOGO */}
       <Link href="/" className="font-bold text-lg">
         Featrrr Valid
       </Link>
 
-      {/* CENTER NAV (ALWAYS VISIBLE) */}
-      <div className="hidden md:flex gap-6 text-sm text-gray-400">
+      {/* 🔥 CENTER NAV */}
+      <div className="flex items-center gap-4 md:gap-6 text-sm text-gray-400">
+
+        {/* ALWAYS visible */}
         <Link href="/verify" className="hover:text-white">
           Search
         </Link>
@@ -66,9 +68,21 @@ export default function Navbar() {
         <Link href="/how-it-works" className="hover:text-white">
           How it works
         </Link>
+
+        {/* DESKTOP ONLY */}
+        <div className="hidden md:flex gap-6">
+          <a href="#for-creators" className="hover:text-white">
+            For Creators
+          </a>
+
+          <a href="#for-brands" className="hover:text-white">
+            For Brands
+          </a>
+        </div>
+
       </div>
 
-      {/* RIGHT */}
+      {/* RIGHT SIDE */}
       <div className="flex gap-3 items-center">
 
         {user ? (
@@ -88,20 +102,17 @@ export default function Navbar() {
         ) : (
           <>
             <Link href="/login">
-              <Button variant="ghost">
-                Login
-              </Button>
+              <Button variant="ghost">Login</Button>
             </Link>
 
             <Link href="/signup">
-              <Button>
-                Sign Up
-              </Button>
+              <Button>Sign Up</Button>
             </Link>
           </>
         )}
 
       </div>
+
     </nav>
   );
 }
