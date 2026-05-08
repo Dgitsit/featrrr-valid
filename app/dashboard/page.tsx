@@ -2,21 +2,22 @@
 
 import { useEffect, useRef, useState } from "react";
 import { auth, db, storage } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import html2canvas from "html2canvas";
 import { applyScoreDecay } from "@/lib/score";
-import Badge from "@/components/Badge";
+import CreatorCard from "@/components/CreatorCard";
 
 export default function Dashboard() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState("");
   const [upgrading, setUpgrading] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
 
   const cardRef = useRef<HTMLDivElement>(null);
 
-  // 🔐 AUTH + LOAD PROFILE
+  // 🔐 LOAD USER
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (user) => {
       if (!user) {
@@ -53,23 +54,40 @@ export default function Dashboard() {
   const scoreData = applyScoreDecay(profile || {});
   const score = scoreData?.score ?? 60;
 
-  // 📸 UPLOAD PHOTO
-  const handleUpload = async (e: any) => {
+  // 📸 FILE SELECT + PREVIEW
+  const handleFileChange = (e: any) => {
     const file = e.target.files?.[0];
+    if (!file) return;
+
+    const localUrl = URL.createObjectURL(file);
+    setPreview(localUrl);
+
+    handleUpload(file);
+  };
+
+  // 🔥 UPLOAD + SAVE TO FIREBASE + FIRESTORE
+  const handleUpload = async (file: File) => {
     const user = auth.currentUser;
     if (!file || !user) return;
 
     try {
       const storageRef = ref(storage, `profiles/${user.uid}`);
       await uploadBytes(storageRef, file);
+
       const url = await getDownloadURL(storageRef);
 
+      // 🔥 SAVE TO FIRESTORE (THIS IS KEY)
+      await updateDoc(doc(db, "valid_profiles", user.uid), {
+        photoURL: url,
+      });
+
+      // Update UI instantly
       setProfile((prev: any) => ({
         ...prev,
         photoURL: url,
       }));
 
-      setFeedback("Profile photo updated");
+      setFeedback("Profile photo saved");
       setTimeout(() => setFeedback(""), 2000);
     } catch (err) {
       console.error(err);
@@ -80,43 +98,18 @@ export default function Dashboard() {
   const handleGenerateImage = async () => {
     if (!cardRef.current) return;
 
-    const canvas = await html2canvas(cardRef.current);
-    const dataUrl = canvas.toDataURL("image/png");
+    const canvas = await html2canvas(cardRef.current, {
+      backgroundColor: null,
+      scale: 2, // higher quality
+    });
 
     const link = document.createElement("a");
-    link.href = dataUrl;
+    link.href = canvas.toDataURL("image/png");
     link.download = "featrrr-valid-card.png";
     link.click();
   };
 
-  // 📋 COPY BADGE
-  const handleCopyBadge = () => {
-    if (!profile?.badgeNumber) return;
-
-    navigator.clipboard.writeText(String(profile.badgeNumber));
-    setFeedback("Badge copied");
-    setTimeout(() => setFeedback(""), 2000);
-  };
-
-  // 🔗 SHARE LINK
-  const handleShareLink = async () => {
-    if (!profile?.badgeNumber) return;
-
-    const url = `${window.location.origin}/verify/${profile.badgeNumber}`;
-
-    try {
-      await navigator.share({
-        title: "Verify me on Featrrr Valid",
-        url,
-      });
-    } catch {
-      navigator.clipboard.writeText(url);
-      setFeedback("Link copied");
-      setTimeout(() => setFeedback(""), 2000);
-    }
-  };
-
-  // 💳 STRIPE UPGRADE
+  // 💳 STRIPE
   const handleUpgrade = async () => {
     try {
       setUpgrading(true);
@@ -141,18 +134,13 @@ export default function Dashboard() {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        console.error(data);
-        alert("Failed to start checkout");
         setUpgrading(false);
       }
     } catch (err) {
       console.error(err);
-      alert("Something went wrong");
       setUpgrading(false);
     }
   };
-
-  // ==========================
 
   if (loading) {
     return (
@@ -170,78 +158,23 @@ export default function Dashboard() {
     );
   }
 
-  const username =
-    profile.displayName ||
-    profile.email?.split("@")[0] ||
-    "user";
-
   const isActive = profile.subscriptionStatus === "active";
 
+  const creatorData = {
+    id: profile.uid || "me",
+    displayName: profile.displayName,
+    score,
+    status: profile.status || "active",
+    subscriptionStatus: profile.subscriptionStatus,
+    profilePhoto: preview || profile.photoURL,
+  };
+
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center py-10 px-4">
+    <div className="min-h-screen bg-black text-white flex flex-col items-center px-4 py-8">
 
-      {/* ✅ VERIFIED */}
-      {isActive && (
-        <div className="mb-4 px-4 py-2 bg-green-500/10 border border-green-500/30 rounded text-green-400 text-sm">
-          ✔ Verified Featrrr Valid Creator
-        </div>
-      )}
-
-      {/* 🧾 CARD */}
-      <div
-        ref={cardRef}
-        className="w-[320px] bg-[#111] rounded-xl p-4 text-center"
-      >
-        <div className="w-full h-[200px] bg-gray-800 rounded mb-4 flex items-center justify-center overflow-hidden">
-          {profile.photoURL ? (
-            <img src={profile.photoURL} className="w-full h-full object-cover" />
-          ) : (
-            "No Photo"
-          )}
-        </div>
-
-        <h2 className="text-lg font-semibold">@{username}</h2>
-
-        {/* BADGE */}
-        <div className="mt-2 flex flex-col items-center gap-2">
-          <span className="text-xs text-gray-500">
-            Badge #{profile.badgeNumber || "—"}
-          </span>
-
-          <div className="flex gap-2">
-            <button
-              onClick={handleCopyBadge}
-              className="text-xs px-2 py-1 rounded bg-gray-800"
-            >
-              Copy Badge
-            </button>
-
-            <button
-              onClick={handleShareLink}
-              className="text-xs px-2 py-1 rounded bg-gradient-to-r from-purple-500 to-orange-400"
-            >
-              Share
-            </button>
-          </div>
-        </div>
-
-        {/* BADGES */}
-        <div className="flex justify-center gap-2 mt-3">
-          {isActive && <Badge type="premium" />}
-          {profile?.socials?.instagram?.verified && (
-            <Badge type="verified" />
-          )}
-        </div>
-
-        {/* SCORE */}
-        <div className="mt-3 text-sm">{score}/100</div>
-
-        <div className="w-full bg-gray-700 h-2 rounded mt-1">
-          <div
-            className="h-2 rounded bg-gradient-to-r from-purple-500 to-orange-400"
-            style={{ width: `${score}%` }}
-          />
-        </div>
+      {/* CARD */}
+      <div ref={cardRef}>
+        <CreatorCard creator={creatorData} />
       </div>
 
       {/* FEEDBACK */}
@@ -249,14 +182,15 @@ export default function Dashboard() {
         <p className="text-green-400 text-sm mt-4">{feedback}</p>
       )}
 
-      {/* ACTIONS */}
+      {/* UPLOAD */}
       <input
         type="file"
         accept="image/*"
-        onChange={handleUpload}
+        onChange={handleFileChange}
         className="mt-4 text-sm"
       />
 
+      {/* SHARE */}
       <button
         onClick={handleGenerateImage}
         className="mt-4 px-6 py-2 rounded bg-gradient-to-r from-purple-500 to-orange-400"
@@ -264,8 +198,8 @@ export default function Dashboard() {
         Share Your Card
       </button>
 
-      {/* 💳 SUBSCRIPTION */}
-      <div className="mt-8 w-full max-w-md bg-[#111] rounded-xl p-5">
+      {/* SUBSCRIPTION */}
+      <div className="mt-8 w-full max-w-sm bg-[#111] rounded-xl p-5">
         <h2 className="text-sm text-gray-400 mb-3">Subscription</h2>
 
         <div className="flex justify-between mb-2">
