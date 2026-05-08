@@ -5,233 +5,354 @@ import { auth, db, storage } from "@/lib/firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import html2canvas from "html2canvas";
-import { applyScoreDecay } from "@/lib/score";
+import { calculateScore } from "@/utils/calculateScore";
 import CreatorCard from "@/components/CreatorCard";
 
 export default function Dashboard() {
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [feedback, setFeedback] = useState("");
-  const [upgrading, setUpgrading] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [feedback, setFeedback] = useState("");
+  const [preview, setPreview] = useState<string | null>(null);
 
-  const cardRef = useRef<HTMLDivElement>(null);
+  const [instagram, setInstagram] = useState("");
+  const [tiktok, setTiktok] = useState("");
+  const [youtube, setYoutube] = useState("");
 
-  // 🔐 LOAD USER
-  useEffect(() => {
-    const unsub = auth.onAuthStateChanged(async (user) => {
-      if (!user) {
-        window.location.href = "/login";
-        return;
-      }
+  const [postText, setPostText] = useState("");
+  const [postLink, setPostLink] = useState("");
 
-      try {
-        const snap = await getDoc(doc(db, "valid_profiles", user.uid));
+  // ✅ CONTEXT STATE
+  const [contextDisclosures, setContextDisclosures] = useState<any[]>([]);
 
-        if (!snap.exists()) {
-          window.location.href = "/onboarding";
-          return;
-        }
+  const cardRef = useRef<HTMLDivElement>(null);
 
-        const data = snap.data();
+  // LOAD USER
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        window.location.href = "/login";
+        return;
+      }
 
-        if (!data?.onboardingComplete) {
-          window.location.href = "/onboarding";
-          return;
-        }
+      const snap = await getDoc(doc(db, "valid_profiles", user.uid));
 
-        setProfile(data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    });
+      if (!snap.exists()) {
+        window.location.href = "/onboarding";
+        return;
+      }
 
-    return () => unsub();
-  }, []);
+      const data = snap.data();
 
-  const scoreData = applyScoreDecay(profile || {});
-  const score = scoreData?.score ?? 60;
+      setProfile(data);
 
-  // 📸 FILE SELECT + PREVIEW
-  const handleFileChange = (e: any) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+      setInstagram(data?.socials?.instagram || "");
+      setTiktok(data?.socials?.tiktok || "");
+      setYoutube(data?.socials?.youtube || "");
 
-    const localUrl = URL.createObjectURL(file);
-    setPreview(localUrl);
+      // ✅ LOAD CONTEXT
+      setContextDisclosures(data?.contextDisclosures || []);
 
-    handleUpload(file);
-  };
+      setLoading(false);
+    });
 
-  // 🔥 UPLOAD + SAVE TO FIREBASE + FIRESTORE
-  const handleUpload = async (file: File) => {
-    const user = auth.currentUser;
-    if (!file || !user) return;
+    return () => unsub();
+  }, []);
 
-    try {
-      const storageRef = ref(storage, `profiles/${user.uid}`);
-      await uploadBytes(storageRef, file);
+  const score = calculateScore({
+    ...profile,
+    contextDisclosures,
+  });
 
-      const url = await getDownloadURL(storageRef);
+  // IMAGE UPLOAD
+  const handleUpload = async (file: File) => {
+    const user = auth.currentUser;
+    if (!file || !user) return;
 
-      // 🔥 SAVE TO FIRESTORE (THIS IS KEY)
-      await updateDoc(doc(db, "valid_profiles", user.uid), {
-        photoURL: url,
-      });
+    const storageRef = ref(storage, `profiles/${user.uid}/profile.jpg`);
+    await uploadBytes(storageRef, file);
+    const url = await getDownloadURL(storageRef);
 
-      // Update UI instantly
-      setProfile((prev: any) => ({
-        ...prev,
-        photoURL: url,
-      }));
+    await updateDoc(doc(db, "valid_profiles", user.uid), {
+      photoURL: url,
+      "activity.lastUpdated": new Date(),
+    });
 
-      setFeedback("Profile photo saved");
-      setTimeout(() => setFeedback(""), 2000);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+    setProfile((prev: any) => ({ ...prev, photoURL: url }));
+    setPreview(url);
+    setFeedback("Photo updated");
+  };
 
-  // 🖼️ EXPORT CARD
-  const handleGenerateImage = async () => {
-    if (!cardRef.current) return;
+  // SAVE SOCIALS
+  const saveSocials = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
 
-    const canvas = await html2canvas(cardRef.current, {
-      backgroundColor: null,
-      scale: 2, // higher quality
-    });
+    await updateDoc(doc(db, "valid_profiles", user.uid), {
+      socials: { instagram, tiktok, youtube },
+      "activity.lastUpdated": new Date(),
+    });
 
-    const link = document.createElement("a");
-    link.href = canvas.toDataURL("image/png");
-    link.download = "featrrr-valid-card.png";
-    link.click();
-  };
+    setProfile((prev: any) => ({
+      ...prev,
+      socials: { instagram, tiktok, youtube },
+    }));
 
-  // 💳 STRIPE
-  const handleUpgrade = async () => {
-    try {
-      setUpgrading(true);
+    setFeedback("Socials saved");
+  };
 
-      const user = auth.currentUser;
-      if (!user) return;
+  // ADD POST
+  const addPost = async () => {
+    const user = auth.currentUser;
+    if (!user || !postText) return;
 
-      const res = await fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          plan: "monthly",
-          userId: user.uid,
-          email: user.email,
-        }),
-      });
+    const newPost = {
+      text: postText,
+      link: postLink,
+      createdAt: new Date(),
+    };
 
-      const data = await res.json();
+    const updated = [...(profile.postDisclosures || []), newPost];
 
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        setUpgrading(false);
-      }
-    } catch (err) {
-      console.error(err);
-      setUpgrading(false);
-    }
-  };
+    await updateDoc(doc(db, "valid_profiles", user.uid), {
+      postDisclosures: updated,
+      "activity.lastUpdated": new Date(),
+    });
 
-  if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center text-gray-400">
-        Loading...
-      </div>
-    );
-  }
+    setProfile((prev: any) => ({
+      ...prev,
+      postDisclosures: updated,
+    }));
 
-  if (!profile) {
-    return (
-      <div className="h-screen flex items-center justify-center text-red-500">
-        Error loading profile
-      </div>
-    );
-  }
+    setPostText("");
+    setPostLink("");
+  };
 
-  const isActive = profile.subscriptionStatus === "active";
+  // DELETE POST
+  const deletePost = async (index: number) => {
+    const user = auth.currentUser;
+    if (!user) return;
 
-  const creatorData = {
-    id: profile.uid || "me",
-    displayName: profile.displayName,
-    score,
-    status: profile.status || "active",
-    subscriptionStatus: profile.subscriptionStatus,
-    profilePhoto: preview || profile.photoURL,
-  };
+    const updated = [...(profile.postDisclosures || [])];
+    updated.splice(index, 1);
 
-  return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center px-4 py-8">
+    await updateDoc(doc(db, "valid_profiles", user.uid), {
+      postDisclosures: updated,
+      "activity.lastUpdated": new Date(),
+    });
 
-      {/* CARD */}
-      <div ref={cardRef}>
-        <CreatorCard creator={creatorData} />
-      </div>
+    setProfile((prev: any) => ({
+      ...prev,
+      postDisclosures: updated,
+    }));
+  };
 
-      {/* FEEDBACK */}
-      {feedback && (
-        <p className="text-green-400 text-sm mt-4">{feedback}</p>
-      )}
+  // SHARE CARD
+  const handleGenerateImage = async () => {
+    if (!cardRef.current) return;
 
-      {/* UPLOAD */}
-      <input
-        type="file"
-        accept="image/*"
-        onChange={handleFileChange}
-        className="mt-4 text-sm"
-      />
+    const canvas = await html2canvas(cardRef.current, {
+      useCORS: true,
+      scale: 2,
+    });
 
-      {/* SHARE */}
-      <button
-        onClick={handleGenerateImage}
-        className="mt-4 px-6 py-2 rounded bg-gradient-to-r from-purple-500 to-orange-400"
-      >
-        Share Your Card
-      </button>
+    const link = document.createElement("a");
+    link.href = canvas.toDataURL();
+    link.download = "featrrr-card.png";
+    link.click();
+  };
 
-      {/* SUBSCRIPTION */}
-      <div className="mt-8 w-full max-w-sm bg-[#111] rounded-xl p-5">
-        <h2 className="text-sm text-gray-400 mb-3">Subscription</h2>
+  if (loading || !profile) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        Loading...
+      </div>
+    );
+  }
 
-        <div className="flex justify-between mb-2">
-          <span className="text-gray-400 text-sm">Plan</span>
-          <span>{isActive ? "Pro" : "Free"}</span>
-        </div>
+  const creatorData = {
+    id: auth.currentUser?.uid,
+    displayName: profile.displayName,
+    score,
+    status: profile.status || "active",
+    subscriptionStatus: profile.subscriptionStatus,
+    profilePhoto: preview || profile.photoURL,
+  };
 
-        <div className="flex justify-between mb-4">
-          <span className="text-gray-400 text-sm">Status</span>
-          <span className={isActive ? "text-green-400" : "text-gray-400"}>
-            {isActive ? "Active" : "Inactive"}
-          </span>
-        </div>
+  return (
+    <div className="min-h-screen bg-black text-white flex flex-col items-center px-4 py-8 gap-6">
 
-        {!isActive ? (
-          <button
-            onClick={handleUpgrade}
-            disabled={upgrading}
-            className="w-full py-2 rounded bg-gradient-to-r from-purple-500 to-orange-400"
-          >
-            {upgrading ? "Redirecting..." : "Upgrade to Featrrr Valid"}
-          </button>
-        ) : (
-          <button
-            onClick={() => (window.location.href = "/settings")}
-            className="w-full py-2 rounded bg-white text-black"
-          >
-            Manage Subscription
-          </button>
-        )}
-      </div>
+      {/* CARD */}
+      <div ref={cardRef}>
+        <CreatorCard creator={creatorData} />
+      </div>
 
-    </div>
-  );
+      {/* UPLOAD */}
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+
+          const localUrl = URL.createObjectURL(file);
+          setPreview(localUrl);
+
+          handleUpload(file);
+        }}
+      />
+
+      <button onClick={handleGenerateImage} className="px-6 py-2 bg-purple-500 rounded">
+        Share Card
+      </button>
+
+      {/* SOCIALS */}
+      <div className="w-full max-w-sm bg-[#111] p-4 rounded">
+        <h3>Social Links</h3>
+        <input value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="Instagram" className="w-full mb-2 p-2 bg-black" />
+        <input value={tiktok} onChange={(e) => setTiktok(e.target.value)} placeholder="TikTok" className="w-full mb-2 p-2 bg-black" />
+        <input value={youtube} onChange={(e) => setYoutube(e.target.value)} placeholder="YouTube" className="w-full mb-2 p-2 bg-black" />
+        <button onClick={saveSocials} className="w-full py-2 bg-purple-500 rounded">
+          Save Socials
+        </button>
+      </div>
+
+      {/* POST DISCLOSURES */}
+      <div className="w-full max-w-sm bg-[#111] p-4 rounded">
+        <h3>Transparency Posts</h3>
+
+        <textarea
+          value={postText}
+          onChange={(e) => setPostText(e.target.value)}
+          placeholder="What are you disclosing?"
+          className="w-full p-2 bg-black mb-2"
+        />
+
+        <input
+          value={postLink}
+          onChange={(e) => setPostLink(e.target.value)}
+          placeholder="Link to post"
+          className="w-full p-2 bg-black mb-2"
+        />
+
+        <button onClick={addPost} className="w-full py-2 bg-purple-500 rounded">
+          Add Post
+        </button>
+
+        <div className="mt-4 space-y-2">
+          {(profile.postDisclosures || []).map((p: any, i: number) => (
+            <div key={i} className="bg-black p-2 rounded">
+              <p>{p.text}</p>
+              {p.link && (
+                <a href={p.link} target="_blank" className="text-blue-400 text-xs">
+                  View Post
+                </a>
+              )}
+              <button onClick={() => deletePost(i)} className="text-red-400 text-xs">
+                Delete
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ================= CONTEXT DISCLOSURES ================= */}
+      <div className="w-full max-w-sm bg-[#111] p-5 rounded-xl">
+        <h3 className="text-sm text-gray-400 mb-4">
+          Transparency Context
+        </h3>
+
+        {[
+          { type: "researchBacked", label: "Content backed by research" },
+          { type: "notProfessionalAdvice", label: "Not professional advice" },
+          { type: "mayNotReflectLatest", label: "May not reflect latest research" },
+          { type: "dueDiligence", label: "Due diligence on promotions" },
+          { type: "sourcesCited", label: "Sources are cited" },
+          { type: "originalContent", label: "Content is original" },
+        ].map((item) => {
+          const current = contextDisclosures.find(
+            (d) => d.type === item.type
+          );
+
+          const enabled = current?.enabled || false;
+          const note = current?.note || "";
+
+          return (
+            <div key={item.type} className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm">{item.label}</span>
+
+                <button
+                  onClick={() => {
+                    setContextDisclosures((prev) => {
+                      const exists = prev.find((d) => d.type === item.type);
+
+                      if (exists) {
+                        return prev.map((d) =>
+                          d.type === item.type
+                            ? { ...d, enabled: !d.enabled }
+                            : d
+                        );
+                      }
+
+                      return [...prev, { type: item.type, enabled: true, note: "" }];
+                    });
+                  }}
+                  className={`w-12 h-6 flex items-center rounded-full p-1 ${
+                    enabled ? "bg-green-500" : "bg-gray-700"
+                  }`}
+                >
+                  <div
+                    className={`bg-white w-4 h-4 rounded-full ${
+                      enabled ? "translate-x-6" : ""
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {enabled && (
+                <textarea
+                  value={note}
+                  onChange={(e) => {
+                    const val = e.target.value;
+
+                    setContextDisclosures((prev) =>
+                      prev.map((d) =>
+                        d.type === item.type ? { ...d, note: val } : d
+                      )
+                    );
+                  }}
+                  className="w-full p-2 bg-black border border-gray-700 rounded text-sm"
+                  placeholder="Optional context..."
+                />
+              )}
+            </div>
+          );
+        })}
+
+        <button
+          onClick={async () => {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            await updateDoc(doc(db, "valid_profiles", user.uid), {
+              contextDisclosures,
+              "activity.lastUpdated": new Date(),
+            });
+
+            setProfile((prev: any) => ({
+              ...prev,
+              contextDisclosures,
+            }));
+
+            setFeedback("Context saved");
+          }}
+          className="w-full py-2 mt-3 bg-gradient-to-r from-purple-500 to-orange-400 rounded"
+        >
+          Save Context
+        </button>
+      </div>
+
+      {feedback && <p className="text-green-400">{feedback}</p>}
+    </div>
+  );
 }

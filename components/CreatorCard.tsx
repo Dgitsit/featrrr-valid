@@ -3,10 +3,10 @@
 import Link from "next/link";
 
 type Creator = {
-  id: string;
-  displayName: string;
-  score: number;
-  status: string;
+  id?: string; // 🔥 make optional to prevent crashes
+  displayName?: string;
+  score?: number;
+  status?: string;
   subscriptionStatus?: string;
   profilePhoto?: string;
 };
@@ -14,11 +14,16 @@ type Creator = {
 export default function CreatorCard({ creator }: { creator: Creator }) {
   const isPaid = creator.subscriptionStatus === "active";
 
+  // 🔥 SAFE FALLBACKS
+  const safeId = creator.id || "";
+  const name = creator.displayName || "user";
+  const score = creator.score ?? 0;
+
   return (
-    <Link href={`/profile/${creator.id}`}>
+    <Link href={safeId ? `/profile/${safeId}` : "#"}>
       <div className="w-full max-w-xs cursor-pointer transition duration-300 hover:scale-[1.02]">
 
-        {/* 🔥 GRADIENT BORDER */}
+        {/* GRADIENT BORDER */}
         <div className="rounded-2xl p-[1px] bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400">
 
           {/* CARD */}
@@ -32,6 +37,7 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
                   src={creator.profilePhoto}
                   alt="profile"
                   className="w-full h-full object-cover"
+                  crossOrigin="anonymous" // 🔥 FIX FOR SHARE / EXPORT
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center text-gray-500">
@@ -42,7 +48,7 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
                 </div>
               )}
 
-              {/* 🔥 STATUS BADGE */}
+              {/* STATUS BADGE */}
               <div className="absolute top-3 right-3">
                 {isPaid ? (
                   <div className="px-3 py-1 text-[10px] rounded-full bg-gradient-to-r from-purple-500 to-orange-400 text-white font-semibold shadow">
@@ -62,7 +68,7 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
 
               {/* NAME */}
               <h2 className="text-lg font-semibold truncate">
-                @{creator.displayName}
+                @{name}
               </h2>
 
               {/* STATUS */}
@@ -77,36 +83,34 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
                     : "text-gray-500"
                 }`}
               >
-                {creator.status}
+                {creator.status || "unknown"}
               </p>
 
-              {/* 🔥 SCORE SECTION */}
+              {/* SCORE */}
               <div className="mt-5">
-
                 <p className="text-[10px] text-gray-400 mb-1">
                   TRANSPARENCY SCORE
                 </p>
 
                 <div className="flex items-end gap-2">
                   <span className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-orange-400 text-transparent bg-clip-text">
-                    {creator.score}
+                    {score}
                   </span>
                   <span className="text-xs text-gray-500 mb-1">/100</span>
                 </div>
 
-                {/* PROGRESS BAR */}
+                {/* PROGRESS */}
                 <div className="w-full h-2 bg-gray-800 rounded-full mt-2 overflow-hidden">
                   <div
                     className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-orange-400 transition-all"
                     style={{
-                      width: `${Math.max(0, Math.min(creator.score, 100))}%`,
+                      width: `${Math.max(0, Math.min(score, 100))}%`,
                     }}
                   />
                 </div>
-
               </div>
 
-              {/* 🔥 MICRO MESSAGE */}
+              {/* MESSAGE */}
               <p className="text-[10px] text-gray-500 mt-3">
                 {isPaid
                   ? "Verified transparency profile"
