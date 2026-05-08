@@ -14,6 +14,7 @@ export async function POST(req: Request) {
     console.log("USER ID:", userId);
     console.log("EMAIL:", email);
 
+    // ✅ Validation
     if (!plan || !userId || !email) {
       console.error("❌ Missing required fields");
       return NextResponse.json(
@@ -22,12 +23,11 @@ export async function POST(req: Request) {
       );
     }
 
+    // ✅ Pick correct price
     const priceId =
       plan === "yearly"
         ? process.env.STRIPE_YEARLY_PRICE_ID
         : process.env.STRIPE_MONTHLY_PRICE_ID;
-
-    console.log("PRICE ID:", priceId);
 
     if (!priceId) {
       console.error("❌ Price ID not found in env");
@@ -37,19 +37,30 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log("BASE URL:", process.env.NEXT_PUBLIC_BASE_URL);
+    console.log("PRICE ID:", priceId);
+
+    // ✅ Force correct base URL (don’t rely on env blindly)
+    const BASE_URL =
+      process.env.NEXT_PUBLIC_BASE_URL || "https://featrrrvalid.com";
+
+    console.log("BASE URL:", BASE_URL);
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer_email: email,
+
       line_items: [
         {
           price: priceId,
           quantity: 1,
         },
       ],
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/upgrade`,
+
+      // ✅ YOUR UPDATED DOMAIN
+      success_url: `${BASE_URL}/dashboard`,
+      cancel_url: `${BASE_URL}/upgrade`,
+
+      // ✅ IMPORTANT (used later in webhook)
       metadata: {
         userId,
         plan,
