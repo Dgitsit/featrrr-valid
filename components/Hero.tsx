@@ -19,8 +19,7 @@ export default function Hero() {
 
         <p className="mt-4 text-gray-400 text-sm md:text-base max-w-md">
           Audiences follow people they trust. Featrrr Valid helps you prove it — so brands can confidently sponsor you.
-        </p>
-
+      </p>
         <div className="mt-6 flex flex-col sm:flex-row gap-3">
 
           <Link href="/login">
@@ -31,7 +30,7 @@ export default function Hero() {
 
           <Link href="/verify">
             <button className="w-full sm:w-auto px-6 py-3 rounded-full border border-white/20 text-white">
-              Search Creators
+              Verify Creators
             </button>
           </Link>
 
