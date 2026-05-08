@@ -62,7 +62,7 @@ export default function Navbar() {
 
         {/* ALWAYS visible */}
         <Link href="/verify" className="hover:text-white">
-          Search
+          Verify
         </Link>
 
         <Link href="/how-it-works" className="hover:text-white">
