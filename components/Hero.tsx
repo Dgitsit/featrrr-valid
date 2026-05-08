@@ -18,8 +18,7 @@ export default function Hero() {
         </h1>
 
         <p className="mt-4 text-gray-400 text-sm md:text-base max-w-md">
-          Audiences follow people they trust.  
-          Featrrr Valid helps you prove it — so brands can confidently sponsor you.
+          Audiences follow people they trust. Featrrr Valid helps you prove it — so brands can confidently sponsor you.
         </p>
 
         <div className="mt-6 flex flex-col sm:flex-row gap-3">
