@@ -38,7 +38,7 @@ export default function Navbar() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      router.replace("/login");
+      router.replace("/");
     } catch (err) {
       console.error("Logout error:", err);
     }
@@ -50,29 +50,37 @@ export default function Navbar() {
     "";
 
   return (
-    <nav className="w-full flex justify-between items-center px-6 py-4 bg-black text-white border-b border-gray-800">
+    <nav className="w-full flex justify-between items-center px-6 md:px-12 py-4 bg-black text-white border-b border-gray-800">
 
-      {/* LEFT */}
+      {/* LEFT (LOGO) */}
       <Link href="/" className="font-bold text-lg">
-        Featrrr
+        Featrrr Valid
       </Link>
+
+      {/* CENTER NAV (ALWAYS VISIBLE) */}
+      <div className="hidden md:flex gap-6 text-sm text-gray-400">
+        <Link href="/verify" className="hover:text-white">
+          Search
+        </Link>
+
+        <Link href="/how-it-works" className="hover:text-white">
+          How it works
+        </Link>
+      </div>
 
       {/* RIGHT */}
       <div className="flex gap-3 items-center">
 
         {user ? (
           <>
-            {/* NAV LINKS */}
             <Link href="/dashboard" className="text-sm text-gray-300 hover:text-white">
               Dashboard
             </Link>
 
-            {/* USER NAME */}
-            <span className="text-sm text-gray-400">
+            <span className="text-sm text-gray-500">
               @{displayName}
             </span>
 
-            {/* LOGOUT */}
             <Button variant="danger" onClick={handleLogout}>
               Logout
             </Button>
