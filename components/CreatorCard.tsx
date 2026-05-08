@@ -3,21 +3,22 @@
 import Link from "next/link";
 
 type Creator = {
-  id?: string; // 🔥 make optional to prevent crashes
+  id?: string;
   displayName?: string;
   score?: number;
   status?: string;
   subscriptionStatus?: string;
   profilePhoto?: string;
+  badgeNumber?: number; // 🔥 NEW
 };
 
 export default function CreatorCard({ creator }: { creator: Creator }) {
   const isPaid = creator.subscriptionStatus === "active";
 
-  // 🔥 SAFE FALLBACKS
   const safeId = creator.id || "";
   const name = creator.displayName || "user";
   const score = creator.score ?? 0;
+  const badge = creator.badgeNumber || "—";
 
   return (
     <Link href={safeId ? `/profile/${safeId}` : "#"}>
@@ -37,7 +38,7 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
                   src={creator.profilePhoto}
                   alt="profile"
                   className="w-full h-full object-cover"
-                  crossOrigin="anonymous" // 🔥 FIX FOR SHARE / EXPORT
+                  crossOrigin="anonymous"
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center text-gray-500">
@@ -61,6 +62,11 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
                 )}
               </div>
 
+              {/* 🔥 BADGE NUMBER (TOP LEFT) */}
+              <div className="absolute top-3 left-3 px-2 py-1 text-[10px] rounded bg-black/70 text-gray-300">
+                #{badge}
+              </div>
+
             </div>
 
             {/* CONTENT */}
@@ -71,7 +77,7 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
                 @{name}
               </h2>
 
-              {/* STATUS */}
+              {/* STATUS TEXT */}
               <p
                 className={`text-xs mt-1 ${
                   creator.status === "active"
@@ -83,11 +89,18 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
                     : "text-gray-500"
                 }`}
               >
-                {creator.status || "unknown"}
+                {creator.status === "active"
+                  ? "Active"
+                  : creator.status === "under_review"
+                  ? "Under Review"
+                  : creator.status === "watch"
+                  ? "Watch"
+                  : "Unknown"}
               </p>
 
               {/* SCORE */}
               <div className="mt-5">
+
                 <p className="text-[10px] text-gray-400 mb-1">
                   TRANSPARENCY SCORE
                 </p>
@@ -99,7 +112,7 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
                   <span className="text-xs text-gray-500 mb-1">/100</span>
                 </div>
 
-                {/* PROGRESS */}
+                {/* PROGRESS BAR */}
                 <div className="w-full h-2 bg-gray-800 rounded-full mt-2 overflow-hidden">
                   <div
                     className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-orange-400 transition-all"
@@ -108,13 +121,14 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
                     }}
                   />
                 </div>
+
               </div>
 
-              {/* MESSAGE */}
+              {/* TRUST MESSAGE */}
               <p className="text-[10px] text-gray-500 mt-3">
                 {isPaid
-                  ? "Verified transparency profile"
-                  : "Upgrade to unlock full trust visibility"}
+                  ? "Transparency verified & actively maintained"
+                  : "Limited transparency — upgrade for full visibility"}
               </p>
 
             </div>
