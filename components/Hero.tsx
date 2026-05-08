@@ -73,7 +73,7 @@ export default function Hero() {
             <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-[10px] text-black font-bold">
               ✓
             </div>
-            <span>Your audience trust & engagement scale</span>
+            <span>Audience trust & engagement scales</span>
           </div>
 
           <div className="flex items-center gap-2">
