@@ -5,58 +5,15 @@ import { calculateStatus } from "@/utils/calculateStatus";
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
+    const raw = (searchParams.get("q") || "").trim().toLowerCase();
 
-    const badge = searchParams.get("badge");
-    const query = (searchParams.get("q") || "").toLowerCase();
-
-    let results: any[] = [];
-
-    // =========================
-    // 🔥 1. BADGE SEARCH (PRIORITY)
-    // =========================
-    if (badge) {
-      const badgeNumber = Number(badge);
-
-      if (!isNaN(badgeNumber)) {
-        const snapshot = await adminDb
-          .collection("valid_profiles")
-          .where("badgeNumber", "==", badgeNumber)
-          .limit(1)
-          .get();
-
-        if (!snapshot.empty) {
-          const doc = snapshot.docs[0];
-          const data = doc.data();
-
-          const score = calculateScore(data);
-
-          return new Response(
-            JSON.stringify([
-              {
-                id: doc.id,
-                displayName: data.displayName || "",
-                subscriptionStatus: data.subscriptionStatus || "inactive",
-                badgeNumber: data.badgeNumber || null,
-                socials: data.socials || {},
-                score,
-                status: calculateStatus(score, data),
-              },
-            ]),
-            { status: 200 }
-          );
-        }
-
-        // no badge match
-        return new Response(JSON.stringify([]), { status: 200 });
-      }
+    if (!raw) {
+      return new Response(JSON.stringify([]), { status: 200 });
     }
 
-    // =========================
-    // 🔥 2. GENERAL SEARCH (fallback)
-    // =========================
     const snapshot = await adminDb.collection("valid_profiles").get();
 
-    results = snapshot.docs
+    const results = snapshot.docs
       .map((doc) => {
         const data = doc.data();
         const score = calculateScore(data);
@@ -72,17 +29,21 @@ export async function GET(req: Request) {
         };
       })
       .filter((creator) => {
-        if (!query) return true;
+        const name = creator.displayName.toLowerCase();
+        const badge = String(creator.badgeNumber || "");
+        const ig = creator.socials?.instagram?.toLowerCase?.() || "";
+        const tt = creator.socials?.tiktok?.toLowerCase?.() || "";
+        const yt = creator.socials?.youtube?.toLowerCase?.() || "";
 
         return (
-          creator.displayName.toLowerCase().includes(query) ||
-          String(creator.badgeNumber || "").includes(query) ||
-          creator.socials?.instagram?.toLowerCase()?.includes(query) ||
-          creator.socials?.tiktok?.toLowerCase()?.includes(query) ||
-          creator.socials?.youtube?.toLowerCase()?.includes(query)
+          name.includes(raw) ||
+          badge.includes(raw) ||
+          ig.includes(raw) ||
+          tt.includes(raw) ||
+          yt.includes(raw)
         );
       })
-      .slice(0, 10); // 🔥 limit results
+      .slice(0, 10);
 
     return new Response(JSON.stringify(results), { status: 200 });
 
