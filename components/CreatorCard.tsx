@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 
 type Creator = {
   id?: string;
@@ -20,7 +21,9 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
   const score = creator.score ?? 0;
   const badge = creator.badgeNumber || "—";
 
-  // ✅ FIX: safe image handling
+  // ✅ Handle image safely
+  const [imageError, setImageError] = useState(false);
+
   const photo =
     creator.profilePhoto && creator.profilePhoto !== ""
       ? creator.profilePhoto
@@ -30,33 +33,31 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
     <Link href={safeId ? `/profile/${safeId}` : "#"}>
       <div className="w-full max-w-xs cursor-pointer transition duration-300 hover:scale-[1.02]">
 
+        {/* GRADIENT BORDER */}
         <div className="rounded-2xl p-[1px] bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400">
 
+          {/* CARD */}
           <div className="bg-[#0b0b0f] rounded-2xl overflow-hidden shadow-xl">
 
             {/* IMAGE */}
             <div className="relative h-52 w-full bg-gray-900 flex items-center justify-center">
 
-              {photo ? (
+              {photo && !imageError ? (
                 <img
                   src={photo}
                   alt="profile"
                   className="w-full h-full object-cover"
                   crossOrigin="anonymous"
-                  onError={(e) => {
-                    // ✅ FIX: fallback if Firebase fails
-                    (e.currentTarget as HTMLImageElement).style.display = "none";
-                  }}
+                  onError={() => setImageError(true)}
                 />
-              ) : null}
-
-              {/* ✅ ALWAYS SHOW FALLBACK IF NO IMAGE OR ERROR */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500 pointer-events-none">
-                <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center text-2xl">
-                  👤
+              ) : (
+                <div className="flex flex-col items-center justify-center text-gray-500">
+                  <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center text-2xl">
+                    👤
+                  </div>
+                  <p className="text-xs mt-2">No Photo</p>
                 </div>
-                <p className="text-xs mt-2">No Photo</p>
-              </div>
+              )}
 
               {/* STATUS BADGE */}
               <div className="absolute top-3 right-3">
@@ -81,6 +82,7 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
             {/* CONTENT */}
             <div className="p-5 text-white">
 
+              {/* NAME */}
               <h2 className="text-lg font-semibold truncate">
                 @{name}
               </h2>
@@ -89,6 +91,7 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
                 Badge #{badge}
               </p>
 
+              {/* STATUS TEXT */}
               <p
                 className={`text-xs mt-1 ${
                   creator.status === "active"
@@ -123,6 +126,7 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
                   <span className="text-xs text-gray-500 mb-1">/100</span>
                 </div>
 
+                {/* PROGRESS BAR */}
                 <div className="w-full h-2 bg-gray-800 rounded-full mt-2 overflow-hidden">
                   <div
                     className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-orange-400 transition-all"
@@ -134,6 +138,7 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
 
               </div>
 
+              {/* TRUST MESSAGE */}
               <p className="text-[10px] text-gray-500 mt-3">
                 {isPaid
                   ? "Transparency verified & actively maintained"
