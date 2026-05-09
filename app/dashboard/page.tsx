@@ -76,6 +76,17 @@ export default function Dashboard() {
     setProfile((prev: any) => ({ ...prev, photoURL: url }));
     setPreview(url);
     setFeedback("Photo uploaded");
+
+    console.log("🔥 URL BEFORE SAVE:", url);
+
+    const res = await fetch("/api/update-profile-photo", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ userId: user.uid, photoURL: url }),
+});
+
+const data = await res.json();
+console.log("🔥 API RESPONSE:", data);
   };
 
   // SHARE
@@ -311,5 +322,5 @@ export default function Dashboard() {
 
       </div>
     </div>
-  );
+  ); 
 }
