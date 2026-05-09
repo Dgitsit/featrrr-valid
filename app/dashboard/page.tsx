@@ -25,6 +25,7 @@ export default function Dashboard() {
 
   const cardRef = useRef<HTMLDivElement>(null);
 
+  // LOAD USER
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (user) => {
       if (!user) return (window.location.href = "/login");
@@ -40,6 +41,8 @@ export default function Dashboard() {
       setYoutube(data?.socials?.youtube || "");
       setContextDisclosures(data?.contextDisclosures || []);
 
+      console.log("🔥 DASHBOARD PROFILE:", data);
+
       setLoading(false);
     });
 
@@ -51,7 +54,7 @@ export default function Dashboard() {
     contextDisclosures,
   });
 
-  // ✅ UPLOAD (WORKING)
+  // ✅ FIXED UPLOAD (REAL FIX)
   const handleUpload = async (file: File) => {
     const user = auth.currentUser;
     if (!file || !user) return;
@@ -63,12 +66,23 @@ export default function Dashboard() {
 
       await fetch("/api/update-profile-photo", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.uid, photoURL: url }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: user.uid,
+          photoURL: url,
+        }),
       });
 
-      setProfile((prev: any) => ({ ...prev, photoURL: url }));
+      // ✅ CRITICAL FIX: REFRESH FROM FIRESTORE
+      const snap = await getDoc(doc(db, "valid_profiles", user.uid));
+      const fresh = snap.data();
+
+      setProfile(fresh);
       setPreview(url);
+
+      console.log("🔥 NEW PHOTO URL:", fresh?.photoURL);
 
       setFeedback("Photo uploaded ✅");
     } catch (err) {
@@ -174,15 +188,20 @@ export default function Dashboard() {
   };
 
   if (loading || !profile)
-    return <div className="h-screen flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="h-screen flex items-center justify-center">
+        Loading...
+      </div>
+    );
 
+  // ✅ CLEAN DATA PASSING
   const creatorData = {
     id: auth.currentUser?.uid || "",
     displayName: profile.displayName || "",
     score,
     status: profile.status || "active",
     subscriptionStatus: profile.subscriptionStatus || "free",
-    profilePhoto: preview || profile.photoURL || "",
+    profilePhoto: preview ?? profile.photoURL ?? "",
     badgeNumber: profile.badgeNumber || "",
   };
 
@@ -216,7 +235,13 @@ export default function Dashboard() {
 
           <label className="block cursor-pointer bg-gray-800 p-3 rounded">
             Upload Photo (+3 pts)
-            <input type="file" hidden onChange={(e) => e.target.files && handleUpload(e.target.files[0])} />
+            <input
+              type="file"
+              hidden
+              onChange={(e) =>
+                e.target.files && handleUpload(e.target.files[0])
+              }
+            />
           </label>
 
           <button onClick={handleGenerateImage} className="w-full bg-purple-500 p-3 rounded">
