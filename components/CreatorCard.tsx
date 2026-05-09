@@ -9,7 +9,7 @@ type Creator = {
   status?: string;
   subscriptionStatus?: string;
   profilePhoto?: string;
-  badgeNumber?: number; // 🔥 NEW
+  badgeNumber?: number | string; // 🔥 NEW
 };
 
 export default function CreatorCard({ creator }: { creator: Creator }) {
@@ -76,6 +76,9 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
               <h2 className="text-lg font-semibold truncate">
                 @{name}
               </h2>
+<p className="text-[10px] text-gray-500 mt-1">
+  Badge #{creator.badgeNumber || "—"}
+</p>
 
               {/* STATUS TEXT */}
               <p

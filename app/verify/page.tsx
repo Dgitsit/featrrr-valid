@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Creator = {
   id: string;
@@ -8,7 +8,7 @@ type Creator = {
   score: number;
   status: string;
   subscriptionStatus?: string;
-  badgeNumber?: number;
+  badgeNumber?: number | string;
 };
 
 export default function VerifyPage() {
@@ -16,8 +16,21 @@ export default function VerifyPage() {
   const [creator, setCreator] = useState<Creator | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleSearch = async () => {
-    if (!query.trim()) {
+  // ✅ AUTO SEARCH FROM URL (?q=)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get("q");
+
+    if (q) {
+      setQuery(q);
+      handleSearch(q);
+    }
+  }, []);
+
+  const handleSearch = async (customQuery?: string) => {
+    const q = (customQuery || query).trim();
+
+    if (!q) {
       alert("Enter name or badge number");
       return;
     }
@@ -25,7 +38,7 @@ export default function VerifyPage() {
     try {
       setLoading(true);
 
-      const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
       const data = await res.json();
 
       setCreator(data?.[0] || null);
@@ -49,12 +62,15 @@ export default function VerifyPage() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSearch();
+          }}
           placeholder="Enter name or badge #"
           className="flex-1 border px-3 py-2 rounded text-black"
         />
 
         <button
-          onClick={handleSearch}
+          onClick={() => handleSearch()}
           className="bg-black text-white px-4 py-2 rounded"
         >
           Search
@@ -69,7 +85,7 @@ export default function VerifyPage() {
         <div className="w-full max-w-md border rounded p-4 text-black">
 
           <h2 className="text-lg font-semibold">
-            @{creator.displayName}
+            @{creator.displayName || "user"}
           </h2>
 
           <p className="text-sm text-gray-600">
@@ -77,11 +93,11 @@ export default function VerifyPage() {
           </p>
 
           <p className="text-sm mt-2">
-            Score: {creator.score}/100
+            Score: {creator.score || 0}/100
           </p>
 
           <p className="text-sm mt-1">
-            Status: {creator.status}
+            Status: {creator.status || "unknown"}
           </p>
 
           <p className="text-sm mt-1">

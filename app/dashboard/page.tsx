@@ -21,7 +21,7 @@ export default function Dashboard() {
   const [postText, setPostText] = useState("");
   const [postLink, setPostLink] = useState("");
 
-  const [contextDisclosures, setContextDisclosures] = useState<string[]>([]);
+  const [contextDisclosures, setContextDisclosures] = useState<any[]>([]);
 
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -129,10 +129,11 @@ console.log("🔥 API RESPONSE:", data);
   // SAVE SOCIALS
   const saveSocials = async () => {
     const user = auth.currentUser;
+if (!user) return;
 
-    await updateDoc(doc(db, "valid_profiles", user!.uid), {
-      socials: { instagram, tiktok, youtube },
-    });
+await updateDoc(doc(db, "valid_profiles", user.uid), {
+  socials: { instagram, tiktok, youtube },
+});
 
     setFeedback("Socials saved");
   };
@@ -141,17 +142,19 @@ console.log("🔥 API RESPONSE:", data);
   const addPost = async () => {
     const user = auth.currentUser;
 
-    const newPost = {
+if (!user) return;
+
+const newPost = {
       text: postText,
       link: postLink,
       createdAt: new Date(),
     };
 
-    const updated = [...(profile.postDisclosures || []), newPost];
+const updated = [...(profile.postDisclosures || []), newPost];
 
-    await updateDoc(doc(db, "valid_profiles", user!.uid), {
-      postDisclosures: updated,
-    });
+await updateDoc(doc(db, "valid_profiles", user.uid), {
+  postDisclosures: updated,
+});
 
     setProfile((prev: any) => ({
       ...prev,
@@ -164,44 +167,50 @@ console.log("🔥 API RESPONSE:", data);
 
   // DELETE POST
   const deletePost = async (i: number) => {
-    const user = auth.currentUser;
+  const user = auth.currentUser;
+  if (!user) return;
 
-    const updated = [...profile.postDisclosures];
-    updated.splice(i, 1);
+  const updated = [...(profile.postDisclosures || [])];
+  updated.splice(i, 1);
 
-    await updateDoc(doc(db, "valid_profiles", user!.uid), {
-      postDisclosures: updated,
-    });
+  await updateDoc(doc(db, "valid_profiles", user.uid), {
+    postDisclosures: updated,
+  });
 
-    setProfile((prev: any) => ({
-      ...prev,
-      postDisclosures: updated,
-    }));
-  };
+  setProfile((prev: any) => ({
+    ...prev,
+    postDisclosures: updated,
+  }));
+};
 
   // SAVE CONTEXT
   const saveContext = async () => {
-    const user = auth.currentUser;
+  const user = auth.currentUser;
+  if (!user) return;
 
-    await updateDoc(doc(db, "valid_profiles", user!.uid), {
-      contextDisclosures,
-    });
+  await updateDoc(doc(db, "valid_profiles", user.uid), {
+    contextDisclosures,
+  });
 
-    setFeedback("Context saved");
-  };
+  setFeedback("Context saved");
+};
 
-  if (loading || !profile)
-    return <div className="h-screen flex items-center justify-center">Loading...</div>;
+if (loading || !profile)
+  return (
+    <div className="h-screen flex items-center justify-center">
+      Loading...
+    </div>
+  );
 
-  const creatorData = {
-    id: auth.currentUser?.uid,
-    displayName: profile.displayName,
-    score,
-    status: profile.status || "active",
-    subscriptionStatus: profile.subscriptionStatus,
-    profilePhoto: preview || profile.photoURL,
-    badgeNumber: profile.badgeNumber,
-  };
+const creatorData = {
+  id: auth.currentUser?.uid || "",
+  displayName: profile.displayName || "",
+  score: score || 0,
+  status: profile.status || "active",
+  subscriptionStatus: profile.subscriptionStatus || "free",
+  profilePhoto: preview || profile.photoURL || "",
+  badgeNumber: profile.badgeNumber || "",
+};
 
   return (
     <div className="min-h-screen bg-black text-white flex justify-center px-4 py-10">
@@ -279,7 +288,7 @@ console.log("🔥 API RESPONSE:", data);
             Add
           </button>
 
-          {profile.postDisclosures?.map((p: any, i: number) => (
+          {(profile.postDisclosures || []).map((p: any, i: number) => (
             <div key={i} className="bg-black p-2 rounded">
               <p>{p.text}</p>
               <button onClick={() => deletePost(i)} className="text-red-400 text-xs">

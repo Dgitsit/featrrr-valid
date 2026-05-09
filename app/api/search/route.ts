@@ -65,7 +65,7 @@ export async function GET(req: Request) {
           id: doc.id,
           displayName: data.displayName || "",
           subscriptionStatus: data.subscriptionStatus || "inactive",
-          badgeNumber: data.badgeNumber || null,
+          badgeNumber: data.badgeNumber ?? "",
           socials: data.socials || {},
           score,
           status: calculateStatus(score, data),
