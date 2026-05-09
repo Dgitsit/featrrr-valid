@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type Creator = {
   id?: string;
@@ -21,13 +21,19 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
   const score = creator.score ?? 0;
   const badge = creator.badgeNumber || "—";
 
-  // ✅ Handle image safely
+  // ✅ Track image failure
   const [imageError, setImageError] = useState(false);
 
+  // 🔥 FORCE FRESH IMAGE (bypass Firebase caching delay)
   const photo =
     creator.profilePhoto && creator.profilePhoto !== ""
-      ? creator.profilePhoto
+      ? `${creator.profilePhoto}?t=${Date.now()}`
       : null;
+
+  // ✅ Reset error when image changes (CRITICAL)
+  useEffect(() => {
+    setImageError(false);
+  }, [creator.profilePhoto]);
 
   return (
     <Link href={safeId ? `/profile/${safeId}` : "#"}>
@@ -47,7 +53,6 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
                   src={photo}
                   alt="profile"
                   className="w-full h-full object-cover"
-                  crossOrigin="anonymous"
                   onError={() => setImageError(true)}
                 />
               ) : (

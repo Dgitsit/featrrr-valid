@@ -54,7 +54,7 @@ export default function Dashboard() {
     contextDisclosures,
   });
 
-  // ✅ FIXED UPLOAD (REAL FIX)
+  // UPLOAD
   const handleUpload = async (file: File) => {
     const user = auth.currentUser;
     if (!file || !user) return;
@@ -75,7 +75,6 @@ export default function Dashboard() {
         }),
       });
 
-      // ✅ CRITICAL FIX: REFRESH FROM FIRESTORE
       const snap = await getDoc(doc(db, "valid_profiles", user.uid));
       const fresh = snap.data();
 
@@ -194,14 +193,14 @@ export default function Dashboard() {
       </div>
     );
 
-  // ✅ CLEAN DATA PASSING
+  // ✅ FIX APPLIED HERE
   const creatorData = {
     id: auth.currentUser?.uid || "",
     displayName: profile.displayName || "",
     score,
     status: profile.status || "active",
     subscriptionStatus: profile.subscriptionStatus || "free",
-    profilePhoto: preview ?? profile.photoURL ?? "",
+    profilePhoto: preview || profile.photoURL || "",
     badgeNumber: profile.badgeNumber || "",
   };
 
@@ -254,69 +253,6 @@ export default function Dashboard() {
 
           <button onClick={handleCopyLink} className="w-full bg-gray-700 p-3 rounded">
             Copy Link
-          </button>
-        </div>
-
-        {/* SOCIALS */}
-        <div className="bg-[#111] p-6 rounded-xl space-y-3">
-          <h3 className="text-sm text-gray-400">Socials (+2 pts)</h3>
-
-          <input value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="Instagram" className="w-full p-2 bg-black border border-gray-700 rounded" />
-          <input value={tiktok} onChange={(e) => setTiktok(e.target.value)} placeholder="TikTok" className="w-full p-2 bg-black border border-gray-700 rounded" />
-          <input value={youtube} onChange={(e) => setYoutube(e.target.value)} placeholder="YouTube" className="w-full p-2 bg-black border border-gray-700 rounded" />
-
-          <button onClick={saveSocials} className="w-full bg-purple-500 p-2 rounded">
-            Save Socials
-          </button>
-        </div>
-
-        {/* POSTS */}
-        <div className="bg-[#111] p-6 rounded-xl space-y-3">
-          <h3 className="text-sm text-gray-400">Post Disclosures (+2 pts)</h3>
-
-          <textarea value={postText} onChange={(e) => setPostText(e.target.value)} className="w-full p-2 bg-black border border-gray-700 rounded" />
-          <input value={postLink} onChange={(e) => setPostLink(e.target.value)} className="w-full p-2 bg-black border border-gray-700 rounded" />
-
-          <button onClick={addPost} className="w-full bg-purple-500 p-2 rounded">
-            Add Disclosure
-          </button>
-
-          {(profile.postDisclosures || []).map((p: any, i: number) => (
-            <div key={i} className="bg-black p-2 rounded">
-              <p>{p.text}</p>
-              <button onClick={() => deletePost(i)} className="text-red-400 text-xs">
-                Delete
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* CONTEXT */}
-        <div className="bg-[#111] p-6 rounded-xl space-y-3">
-          <h3 className="text-sm text-gray-400">Context (+2 pts)</h3>
-
-          {["researchBacked", "sourcesCited", "originalContent"].map((type) => (
-            <button
-              key={type}
-              onClick={() =>
-                setContextDisclosures((prev) =>
-                  prev.includes(type)
-                    ? prev.filter((t) => t !== type)
-                    : [...prev, type]
-                )
-              }
-              className={`p-2 rounded border ${
-                contextDisclosures.includes(type)
-                  ? "border-green-500"
-                  : "border-gray-700"
-              }`}
-            >
-              {type}
-            </button>
-          ))}
-
-          <button onClick={saveContext} className="w-full bg-purple-500 p-2 rounded">
-            Save Context
           </button>
         </div>
 
