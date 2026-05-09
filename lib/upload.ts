@@ -1,13 +1,14 @@
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { app } from "@/lib/firebase";
-
-const storage = getStorage(app);
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "@/lib/firebase";
 
 export async function uploadProfileImage(file: File, userId: string) {
   try {
-    const storageRef = ref(storage, `profiles/${userId}`);
+    // ✅ add unique filename
+    const storageRef = ref(
+      storage,
+      `profiles/${userId}/profile_${Date.now()}.jpg`
+    );
 
-    // ✅ correct await
     await uploadBytes(storageRef, file);
 
     const url = await getDownloadURL(storageRef);

@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { auth, db, storage } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import html2canvas from "html2canvas";
 import { calculateScore } from "@/utils/calculateScore";
 import CreatorCard from "@/components/CreatorCard";
+import { uploadProfileImage } from "@/lib/upload"; // ✅ NEW
 
 export default function Dashboard() {
   const [profile, setProfile] = useState<any>(null);
@@ -52,41 +52,35 @@ export default function Dashboard() {
     contextDisclosures,
   });
 
-  // IMAGE UPLOAD
+  // ✅ FIXED IMAGE UPLOAD (CLEAN + WORKING)
   const handleUpload = async (file: File) => {
     const user = auth.currentUser;
     if (!file || !user) return;
 
-    const storageRef = ref(
-      storage,
-      `profiles/${user.uid}/profile_${Date.now()}.jpg`
-    );
+    try {
+      setFeedback("Uploading...");
 
-    await uploadBytes(storageRef, file);
-    const url = await getDownloadURL(storageRef);
+      const url = await uploadProfileImage(file, user.uid);
 
-    await fetch("/api/update-profile-photo", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ userId: user.uid, photoURL: url }),
-    });
+      await fetch("/api/update-profile-photo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: user.uid,
+          photoURL: url,
+        }),
+      });
 
-    setProfile((prev: any) => ({ ...prev, photoURL: url }));
-    setPreview(url);
-    setFeedback("Photo uploaded");
+      setProfile((prev: any) => ({ ...prev, photoURL: url }));
+      setPreview(url);
+      setFeedback("Photo uploaded ✅");
 
-    console.log("🔥 URL BEFORE SAVE:", url);
-
-    const res = await fetch("/api/update-profile-photo", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ userId: user.uid, photoURL: url }),
-});
-
-const data = await res.json();
-console.log("🔥 API RESPONSE:", data);
+    } catch (err) {
+      console.error(err);
+      setFeedback("Upload failed ❌");
+    }
   };
 
   // SHARE
@@ -129,11 +123,11 @@ console.log("🔥 API RESPONSE:", data);
   // SAVE SOCIALS
   const saveSocials = async () => {
     const user = auth.currentUser;
-if (!user) return;
+    if (!user) return;
 
-await updateDoc(doc(db, "valid_profiles", user.uid), {
-  socials: { instagram, tiktok, youtube },
-});
+    await updateDoc(doc(db, "valid_profiles", user.uid), {
+      socials: { instagram, tiktok, youtube },
+    });
 
     setFeedback("Socials saved");
   };
@@ -141,20 +135,19 @@ await updateDoc(doc(db, "valid_profiles", user.uid), {
   // ADD POST
   const addPost = async () => {
     const user = auth.currentUser;
+    if (!user) return;
 
-if (!user) return;
-
-const newPost = {
+    const newPost = {
       text: postText,
       link: postLink,
       createdAt: new Date(),
     };
 
-const updated = [...(profile.postDisclosures || []), newPost];
+    const updated = [...(profile.postDisclosures || []), newPost];
 
-await updateDoc(doc(db, "valid_profiles", user.uid), {
-  postDisclosures: updated,
-});
+    await updateDoc(doc(db, "valid_profiles", user.uid), {
+      postDisclosures: updated,
+    });
 
     setProfile((prev: any) => ({
       ...prev,
@@ -167,69 +160,65 @@ await updateDoc(doc(db, "valid_profiles", user.uid), {
 
   // DELETE POST
   const deletePost = async (i: number) => {
-  const user = auth.currentUser;
-  if (!user) return;
+    const user = auth.currentUser;
+    if (!user) return;
 
-  const updated = [...(profile.postDisclosures || [])];
-  updated.splice(i, 1);
+    const updated = [...(profile.postDisclosures || [])];
+    updated.splice(i, 1);
 
-  await updateDoc(doc(db, "valid_profiles", user.uid), {
-    postDisclosures: updated,
-  });
+    await updateDoc(doc(db, "valid_profiles", user.uid), {
+      postDisclosures: updated,
+    });
 
-  setProfile((prev: any) => ({
-    ...prev,
-    postDisclosures: updated,
-  }));
-};
+    setProfile((prev: any) => ({
+      ...prev,
+      postDisclosures: updated,
+    }));
+  };
 
   // SAVE CONTEXT
   const saveContext = async () => {
-  const user = auth.currentUser;
-  if (!user) return;
+    const user = auth.currentUser;
+    if (!user) return;
 
-  await updateDoc(doc(db, "valid_profiles", user.uid), {
-    contextDisclosures,
-  });
+    await updateDoc(doc(db, "valid_profiles", user.uid), {
+      contextDisclosures,
+    });
 
-  setFeedback("Context saved");
-};
+    setFeedback("Context saved");
+  };
 
-if (loading || !profile)
-  return (
-    <div className="h-screen flex items-center justify-center">
-      Loading...
-    </div>
-  );
+  if (loading || !profile)
+    return (
+      <div className="h-screen flex items-center justify-center">
+        Loading...
+      </div>
+    );
 
-const creatorData = {
-  id: auth.currentUser?.uid || "",
-  displayName: profile.displayName || "",
-  score: score || 0,
-  status: profile.status || "active",
-  subscriptionStatus: profile.subscriptionStatus || "free",
-  profilePhoto: preview || profile.photoURL || "",
-  badgeNumber: profile.badgeNumber || "",
-};
+  const creatorData = {
+    id: auth.currentUser?.uid || "",
+    displayName: profile.displayName || "",
+    score: score || 0,
+    status: profile.status || "active",
+    subscriptionStatus: profile.subscriptionStatus || "free",
+    profilePhoto: preview || profile.photoURL || "",
+    badgeNumber: profile.badgeNumber || "",
+  };
 
   return (
     <div className="min-h-screen bg-black text-white flex justify-center px-4 py-10">
-
       <div className="w-full max-w-5xl space-y-10">
 
-        {/* HEADER */}
         <div className="text-center">
           <h1 className="text-2xl font-semibold">Transparency Dashboard</h1>
         </div>
 
-        {/* CARD */}
         <div className="flex justify-center">
           <div className="w-full max-w-sm">
             <CreatorCard creator={creatorData} />
           </div>
         </div>
 
-        {/* EXPORT CARD */}
         <div className="fixed -left-[9999px]">
           <div ref={cardRef} className="w-[1080px] h-[1080px] flex items-center justify-center bg-black">
             <div className="scale-[2.2]">
@@ -238,7 +227,6 @@ const creatorData = {
           </div>
         </div>
 
-        {/* ACTIONS */}
         <div className="bg-[#111] p-6 rounded-xl space-y-3">
           <h3 className="text-sm text-gray-400">Actions</h3>
 
@@ -247,7 +235,9 @@ const creatorData = {
             <input
               type="file"
               hidden
-              onChange={(e) => e.target.files && handleUpload(e.target.files[0])}
+              onChange={(e) =>
+                e.target.files && handleUpload(e.target.files[0])
+              }
             />
           </label>
 
@@ -264,72 +254,8 @@ const creatorData = {
           </button>
         </div>
 
-        {/* SOCIALS */}
-        <div className="bg-[#111] p-6 rounded-xl space-y-3">
-          <h3 className="text-sm text-gray-400">Socials (+2 each)</h3>
-
-          <input value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="Instagram" className="w-full p-2 bg-black border border-gray-700 rounded"/>
-          <input value={tiktok} onChange={(e) => setTiktok(e.target.value)} placeholder="TikTok" className="w-full p-2 bg-black border border-gray-700 rounded"/>
-          <input value={youtube} onChange={(e) => setYoutube(e.target.value)} placeholder="YouTube" className="w-full p-2 bg-black border border-gray-700 rounded"/>
-
-          <button onClick={saveSocials} className="w-full bg-purple-500 p-2 rounded">
-            Save Socials
-          </button>
-        </div>
-
-        {/* POSTS */}
-        <div className="bg-[#111] p-6 rounded-xl space-y-3">
-          <h3 className="text-sm text-gray-400">Disclosures (+2 pts)</h3>
-
-          <textarea value={postText} onChange={(e) => setPostText(e.target.value)} className="w-full p-2 bg-black border border-gray-700 rounded"/>
-          <input value={postLink} onChange={(e) => setPostLink(e.target.value)} className="w-full p-2 bg-black border border-gray-700 rounded"/>
-
-          <button onClick={addPost} className="w-full bg-purple-500 p-2 rounded">
-            Add
-          </button>
-
-          {(profile.postDisclosures || []).map((p: any, i: number) => (
-            <div key={i} className="bg-black p-2 rounded">
-              <p>{p.text}</p>
-              <button onClick={() => deletePost(i)} className="text-red-400 text-xs">
-                Delete
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* CONTEXT */}
-        <div className="bg-[#111] p-6 rounded-xl space-y-3">
-          <h3 className="text-sm text-gray-400">Context (+2 pts)</h3>
-
-          {["researchBacked", "sourcesCited", "originalContent"].map((type) => (
-            <button
-              key={type}
-              onClick={() =>
-                setContextDisclosures((prev) =>
-                  prev.includes(type)
-                    ? prev.filter((t) => t !== type)
-                    : [...prev, type]
-                )
-              }
-              className={`p-2 rounded border ${
-                contextDisclosures.includes(type)
-                  ? "border-green-500"
-                  : "border-gray-700"
-              }`}
-            >
-              {type}
-            </button>
-          ))}
-
-          <button onClick={saveContext} className="w-full bg-purple-500 p-2 rounded">
-            Save Context
-          </button>
-        </div>
-
         {feedback && <p className="text-green-400 text-center">{feedback}</p>}
-
       </div>
     </div>
-  ); 
+  );
 }
