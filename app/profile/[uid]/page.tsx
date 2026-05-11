@@ -8,6 +8,7 @@ import { calculateScore } from "@/utils/calculateScore";
 import CreatorCard from "@/components/CreatorCard";
 import html2canvas from "html2canvas";
 
+export const dynamic = "force-dynamic";
 export default function ProfilePage() {
   const params = useParams();
   const uid = params.uid as string;

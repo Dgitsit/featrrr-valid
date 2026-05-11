@@ -13,6 +13,7 @@ type Creator = {
   profilePhoto?: string; // 🔥 IMPORTANT
 };
 
+export const dynamic = "force-dynamic";
 export default function VerifyPage() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Creator[]>([]);

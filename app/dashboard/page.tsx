@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import html2canvas from "html2canvas";
 import { calculateScore } from "@/utils/calculateScore";
 import CreatorCard from "@/components/CreatorCard";
 import { uploadProfileImage } from "@/lib/upload";
+
+export const dynamic = "force-dynamic";
 
 export default function Dashboard() {
   const [profile, setProfile] = useState<any>(null);
@@ -19,13 +20,8 @@ export default function Dashboard() {
   const [showContextModal, setShowContextModal] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
-  const [activePost, setActivePost] = useState<any>(null);
-  const [activePostIndex, setActivePostIndex] = useState<number | null>(null);
-
   const [newText, setNewText] = useState("");
   const [newLink, setNewLink] = useState("");
-
-  const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (user) => {
@@ -49,7 +45,7 @@ export default function Dashboard() {
   });
 
   // =========================
-  // 🔥 SHARE / COPY
+  // SHARE / COPY
   // =========================
   const handleCopyLink = async () => {
     const url = `${window.location.origin}/profile/${auth.currentUser?.uid}`;
@@ -69,7 +65,7 @@ export default function Dashboard() {
   };
 
   // =========================
-  // 🔥 UPLOAD
+  // UPLOAD
   // =========================
   const handleUpload = async (file: File) => {
     const user = auth.currentUser;
@@ -88,8 +84,18 @@ export default function Dashboard() {
   };
 
   // =========================
-  // 🔥 CORE DISCLOSURE
+  // CORE DISCLOSURES
   // =========================
+  const disclosureOptions = [
+    { key: "performanceDrugs", label: "Uses performance enhancement drugs" },
+    { key: "cosmeticSurgery", label: "Cosmetic surgery" },
+    { key: "notOriginalContent", label: "Not original content" },
+    { key: "dueDiligence", label: "Due diligence on sponsored content" },
+    { key: "sourcesCited", label: "Sources cited" },
+    { key: "notOwnedResults", label: "Not all owned results" },
+    { key: "notAccredited", label: "Not accredited" },
+  ];
+
   const saveContext = async () => {
     const user = auth.currentUser;
     if (!user) return;
@@ -106,7 +112,7 @@ export default function Dashboard() {
   };
 
   // =========================
-  // 🔥 ADD POST
+  // ADD POST
   // =========================
   const handleAddPost = async () => {
     const user = auth.currentUser;
@@ -137,8 +143,13 @@ export default function Dashboard() {
     setShowModal(false);
   };
 
-  if (loading || !profile)
-    return <div className="h-screen flex items-center justify-center">Loading...</div>;
+  if (loading || !profile) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        Loading...
+      </div>
+    );
+  }
 
   const creatorData = {
     id: auth.currentUser?.uid || "",
@@ -161,9 +172,16 @@ export default function Dashboard() {
 
         {/* ACTIONS */}
         <div className="bg-[#111] p-6 rounded-xl space-y-3">
+
           <label className="block cursor-pointer bg-gray-800 p-3 rounded">
-            Upload Photo
-            <input type="file" hidden onChange={(e) => e.target.files && handleUpload(e.target.files[0])} />
+            Upload Photo <span className="text-green-400">+3 pts</span>
+            <input
+              type="file"
+              hidden
+              onChange={(e) =>
+                e.target.files && handleUpload(e.target.files[0])
+              }
+            />
           </label>
 
           <button onClick={handleShare} className="w-full bg-purple-500 p-3 rounded">
@@ -174,30 +192,35 @@ export default function Dashboard() {
             Copy Link
           </button>
 
-          <button onClick={() => setShowContextModal(true)} className="w-full bg-gray-800 p-3 rounded">
-            Core Disclosure
+          <button
+            onClick={() => setShowContextModal(true)}
+            className="w-full bg-gray-800 p-3 rounded"
+          >
+            Core Disclosure <span className="text-green-400">+2 pts</span>
           </button>
         </div>
 
         {/* GRID */}
         <div className="grid grid-cols-3 gap-2">
+
           <div
             onClick={() => setShowModal(true)}
-            className="aspect-square flex items-center justify-center text-3xl border border-gray-700 rounded cursor-pointer"
+            className="aspect-square flex flex-col items-center justify-center border border-gray-700 rounded cursor-pointer"
           >
-            ➕
+            <span className="text-3xl">➕</span>
+            <span className="text-green-400 text-xs mt-1">+1 pt</span>
           </div>
 
           {(profile.postDisclosures || []).map((post: any, i: number) => (
             <div
               key={i}
-              onClick={() => setActivePost(post)}
               className="aspect-square bg-gray-900 rounded"
             />
           ))}
+
         </div>
 
-        {/* 🔥 POST MODAL */}
+        {/* POST MODAL */}
         {showModal && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
             <div className="bg-[#111] p-4 rounded-xl w-full max-w-md space-y-3">
@@ -216,11 +239,17 @@ export default function Dashboard() {
                 className="w-full p-2 bg-black border border-gray-700 rounded"
               />
 
-              <button onClick={handleAddPost} className="w-full bg-purple-500 p-2 rounded">
-                Post
+              <button
+                onClick={handleAddPost}
+                className="w-full bg-purple-500 p-2 rounded"
+              >
+                Post (+1 pt)
               </button>
 
-              <button onClick={() => setShowModal(false)} className="w-full bg-gray-700 p-2 rounded">
+              <button
+                onClick={() => setShowModal(false)}
+                className="w-full bg-gray-700 p-2 rounded"
+              >
                 Cancel
               </button>
 
@@ -228,28 +257,28 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* 🔥 CORE MODAL */}
+        {/* CORE MODAL */}
         {showContextModal && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
             <div className="bg-[#111] p-4 rounded-xl w-full max-w-md space-y-3">
 
-              {["researchBacked", "sourcesCited", "originalContent"].map((type) => (
+              {disclosureOptions.map((item) => (
                 <button
-                  key={type}
+                  key={item.key}
                   onClick={() =>
                     setContextDisclosures((prev) =>
-                      prev.includes(type)
-                        ? prev.filter((t) => t !== type)
-                        : [...prev, type]
+                      prev.includes(item.key)
+                        ? prev.filter((t) => t !== item.key)
+                        : [...prev, item.key]
                     )
                   }
-                  className={`p-2 rounded border ${
-                    contextDisclosures.includes(type)
-                      ? "border-green-500"
-                      : "border-gray-700"
+                  className={`p-2 rounded border text-left ${
+                    contextDisclosures.includes(item.key)
+                      ? "border-green-500 text-green-400"
+                      : "border-gray-700 text-gray-300"
                   }`}
                 >
-                  {type}
+                  {item.label}
                 </button>
               ))}
 
@@ -260,11 +289,17 @@ export default function Dashboard() {
                 className="w-full p-2 bg-black border border-gray-700 rounded"
               />
 
-              <button onClick={saveContext} className="w-full bg-purple-500 p-2 rounded">
-                Save
+              <button
+                onClick={saveContext}
+                className="w-full bg-purple-500 p-2 rounded"
+              >
+                Save (+2 pts)
               </button>
 
-              <button onClick={() => setShowContextModal(false)} className="w-full bg-gray-700 p-2 rounded">
+              <button
+                onClick={() => setShowContextModal(false)}
+                className="w-full bg-gray-700 p-2 rounded"
+              >
                 Cancel
               </button>
 
@@ -272,9 +307,11 @@ export default function Dashboard() {
           </div>
         )}
 
-        {feedback && <p className="text-green-400 text-center">{feedback}</p>}
+        {feedback && (
+          <p className="text-green-400 text-center">{feedback}</p>
+        )}
 
       </div>
     </div>
   );
-} 
+}
