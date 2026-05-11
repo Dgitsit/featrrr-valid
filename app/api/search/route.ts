@@ -26,6 +26,9 @@ export async function GET(req: Request) {
           socials: data.socials || {},
           score,
           status: calculateStatus(score, data),
+
+          // 🔥 ADD THIS (REQUIRED)
+          profilePhoto: data.photoURL || "",
         };
       })
       .filter((creator) => {

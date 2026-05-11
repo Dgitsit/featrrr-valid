@@ -21,16 +21,13 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
   const score = creator.score ?? 0;
   const badge = creator.badgeNumber || "—";
 
-  // ✅ Track image failure
   const [imageError, setImageError] = useState(false);
 
-  // 🔥 FORCE FRESH IMAGE (bypass Firebase caching delay)
   const photo =
     creator.profilePhoto && creator.profilePhoto !== ""
       ? `${creator.profilePhoto}?t=${Date.now()}`
       : null;
 
-  // ✅ Reset error when image changes (CRITICAL)
   useEffect(() => {
     setImageError(false);
   }, [creator.profilePhoto]);
@@ -45,8 +42,8 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
           {/* CARD */}
           <div className="bg-[#0b0b0f] rounded-2xl overflow-hidden shadow-xl">
 
-            {/* IMAGE */}
-            <div className="relative h-52 w-full bg-gray-900 flex items-center justify-center">
+            {/* 🔥 IMAGE SECTION (CLEAN + DOMINANT) */}
+            <div className="relative h-56 w-full bg-gray-900 overflow-hidden">
 
               {photo && !imageError ? (
                 <img
@@ -56,101 +53,107 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
                   onError={() => setImageError(true)}
                 />
               ) : (
-                <div className="flex flex-col items-center justify-center text-gray-500">
+                <div className="flex h-full items-center justify-center text-gray-500">
                   <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center text-2xl">
                     👤
                   </div>
-                  <p className="text-xs mt-2">No Photo</p>
                 </div>
               )}
 
-              {/* STATUS BADGE */}
-              <div className="absolute top-3 right-3">
-                {isPaid ? (
-                  <div className="px-3 py-1 text-[10px] rounded-full bg-gradient-to-r from-purple-500 to-orange-400 text-white font-semibold shadow">
-                    VALID
-                  </div>
-                ) : (
-                  <div className="px-3 py-1 text-[10px] rounded-full bg-gray-800 text-gray-300 font-medium">
-                    FREE
-                  </div>
-                )}
+              {/* DARK GRADIENT OVERLAY (adds polish) */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+
+              {/* BADGE + STATUS ROW */}
+              <div className="absolute top-3 left-3 right-3 flex justify-between items-center">
+
+                <div className="px-2 py-1 text-[10px] rounded bg-black/70 text-gray-300">
+                  #{badge}
+                </div>
+
+                <div>
+                  {isPaid ? (
+                    <div className="px-3 py-1 text-[10px] rounded-full bg-gradient-to-r from-purple-500 to-orange-400 text-white font-semibold">
+                      VALID
+                    </div>
+                  ) : (
+                    <div className="px-3 py-1 text-[10px] rounded-full bg-gray-800 text-gray-300">
+                      FREE
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* BADGE NUMBER */}
-              <div className="absolute top-3 left-3 px-2 py-1 text-[10px] rounded bg-black/70 text-gray-300">
-                #{badge}
+              {/* NAME OVER IMAGE */}
+              <div className="absolute bottom-3 left-4 right-4">
+                <h2 className="text-lg font-semibold truncate text-white">
+                  @{name}
+                </h2>
               </div>
 
             </div>
 
-            {/* CONTENT */}
-            <div className="p-5 text-white">
+            {/* 🔥 SCORE SECTION (FOCAL POINT) */}
+            <div className="px-5 pt-5 pb-4">
 
-              {/* NAME */}
-              <h2 className="text-lg font-semibold truncate">
-                @{name}
-              </h2>
+              <div className="flex items-center justify-between">
 
-              <p className="text-[10px] text-gray-500 mt-1">
-                Badge #{badge}
-              </p>
+                <div>
+                  <p className="text-[10px] text-gray-400">
+                    TRANSPARENCY SCORE
+                  </p>
 
-              {/* STATUS TEXT */}
-              <p
-                className={`text-xs mt-1 ${
-                  creator.status === "active"
-                    ? "text-green-400"
-                    : creator.status === "under_review"
-                    ? "text-red-400"
-                    : creator.status === "watch"
-                    ? "text-yellow-400"
-                    : "text-gray-500"
-                }`}
-              >
-                {creator.status === "active"
-                  ? "Active"
-                  : creator.status === "under_review"
-                  ? "Under Review"
-                  : creator.status === "watch"
-                  ? "Watch"
-                  : "Unknown"}
-              </p>
-
-              {/* SCORE */}
-              <div className="mt-5">
-
-                <p className="text-[10px] text-gray-400 mb-1">
-                  TRANSPARENCY SCORE
-                </p>
-
-                <div className="flex items-end gap-2">
-                  <span className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-orange-400 text-transparent bg-clip-text">
-                    {score}
-                  </span>
-                  <span className="text-xs text-gray-500 mb-1">/100</span>
+                  <div className="flex items-end gap-2 mt-1">
+                    <span className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-orange-400 text-transparent bg-clip-text">
+                      {score}
+                    </span>
+                    <span className="text-xs text-gray-500 mb-1">/100</span>
+                  </div>
                 </div>
 
-                {/* PROGRESS BAR */}
-                <div className="w-full h-2 bg-gray-800 rounded-full mt-2 overflow-hidden">
-                  <div
-                    className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-orange-400 transition-all"
-                    style={{
-                      width: `${Math.max(0, Math.min(score, 100))}%`,
-                    }}
-                  />
+                {/* STATUS */}
+                <div>
+                  <p
+                    className={`text-xs ${
+                      creator.status === "active"
+                        ? "text-green-400"
+                        : creator.status === "under_review"
+                        ? "text-red-400"
+                        : creator.status === "watch"
+                        ? "text-yellow-400"
+                        : "text-gray-500"
+                    }`}
+                  >
+                    {creator.status === "active"
+                      ? "Active"
+                      : creator.status === "under_review"
+                      ? "Under Review"
+                      : creator.status === "watch"
+                      ? "Watch"
+                      : "Unknown"}
+                  </p>
                 </div>
 
               </div>
 
+              {/* PROGRESS BAR */}
+              <div className="w-full h-2 bg-gray-800 rounded-full mt-4 overflow-hidden">
+                <div
+                  className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-orange-400 transition-all"
+                  style={{
+                    width: `${Math.max(0, Math.min(score, 100))}%`,
+                  }}
+                />
+              </div>
+
               {/* TRUST MESSAGE */}
-              <p className="text-[10px] text-gray-500 mt-3">
+              <p className="text-[11px] text-gray-500 mt-4">
                 {isPaid
                   ? "Transparency verified & actively maintained"
                   : "Limited transparency — upgrade for full visibility"}
               </p>
 
             </div>
+
           </div>
         </div>
       </div>

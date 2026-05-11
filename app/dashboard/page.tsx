@@ -9,255 +9,341 @@ import CreatorCard from "@/components/CreatorCard";
 import { uploadProfileImage } from "@/lib/upload";
 
 export default function Dashboard() {
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [feedback, setFeedback] = useState("");
-  const [preview, setPreview] = useState<string | null>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [feedback, setFeedback] = useState("");
+  const [preview, setPreview] = useState<string | null>(null);
 
-  const [instagram, setInstagram] = useState("");
-  const [tiktok, setTiktok] = useState("");
-  const [youtube, setYoutube] = useState("");
+  const [contextDisclosures, setContextDisclosures] = useState<string[]>([]);
+  const [contextNotes, setContextNotes] = useState("");
 
-  const [postText, setPostText] = useState("");
-  const [postLink, setPostLink] = useState("");
+  const [showContextModal, setShowContextModal] = useState(false);
 
-  const [contextDisclosures, setContextDisclosures] = useState<any[]>([]);
+  const [showModal, setShowModal] = useState(false);
+  const [activePost, setActivePost] = useState<any>(null);
+  const [activePostIndex, setActivePostIndex] = useState<number | null>(null);
 
-  const cardRef = useRef<HTMLDivElement>(null);
+  const [newText, setNewText] = useState("");
+  const [newLink, setNewLink] = useState("");
 
-  // LOAD USER
-  useEffect(() => {
-    const unsub = auth.onAuthStateChanged(async (user) => {
-      if (!user) return (window.location.href = "/login");
+  const cardRef = useRef<HTMLDivElement>(null);
 
-      const snap = await getDoc(doc(db, "valid_profiles", user.uid));
-      if (!snap.exists()) return (window.location.href = "/onboarding");
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged(async (user) => {
+      if (!user) return (window.location.href = "/login");
 
-      const data = snap.data();
+      const snap = await getDoc(doc(db, "valid_profiles", user.uid));
+      if (!snap.exists()) return (window.location.href = "/onboarding");
 
-      setProfile(data);
-      setInstagram(data?.socials?.instagram || "");
-      setTiktok(data?.socials?.tiktok || "");
-      setYoutube(data?.socials?.youtube || "");
-      setContextDisclosures(data?.contextDisclosures || []);
+      const data = snap.data();
 
-      console.log("🔥 DASHBOARD PROFILE:", data);
+      setProfile(data);
+      setContextDisclosures(data?.contextDisclosures || []);
+      setContextNotes(data?.contextNotes || "");
 
-      setLoading(false);
-    });
+      setLoading(false);
+    });
 
-    return () => unsub();
-  }, []);
+    return () => unsub();
+  }, []);
 
-  const score = calculateScore({
-    ...profile,
-    contextDisclosures,
-  });
+  const score = calculateScore({
+    ...profile,
+    contextDisclosures,
+  });
 
-  // UPLOAD
-  const handleUpload = async (file: File) => {
-    const user = auth.currentUser;
-    if (!file || !user) return;
+  // UPLOAD
+  const handleUpload = async (file: File) => {
+    const user = auth.currentUser;
+    if (!file || !user) return;
 
-    try {
-      setFeedback("Uploading...");
+    const url = await uploadProfileImage(file, user.uid);
 
-      const url = await uploadProfileImage(file, user.uid);
+    await fetch("/api/update-profile-photo", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ userId: user.uid, photoURL: url }),
+    });
 
-      await fetch("/api/update-profile-photo", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: user.uid,
-          photoURL: url,
-        }),
-      });
+    const snap = await getDoc(doc(db, "valid_profiles", user.uid));
+    setProfile(snap.data());
+    setPreview(url);
 
-      const snap = await getDoc(doc(db, "valid_profiles", user.uid));
-      const fresh = snap.data();
+    setFeedback("Photo uploaded ✅");
+  };
 
-      setProfile(fresh);
-      setPreview(url);
+  // CORE DISCLOSURE
+  const saveContext = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
 
-      console.log("🔥 NEW PHOTO URL:", fresh?.photoURL);
+    const payload = {
+      contextDisclosures,
+      contextNotes,
+      contextUpdatedAt: new Date(),
+    };
 
-      setFeedback("Photo uploaded ✅");
-    } catch (err) {
-      console.error(err);
-      setFeedback("Upload failed ❌");
-    }
-  };
+    await updateDoc(doc(db, "valid_profiles", user.uid), payload);
 
-  const handleCopyLink = async () => {
-    const url = `${window.location.origin}/verify?q=${profile.badgeNumber}`;
-    await navigator.clipboard.writeText(url);
-    setFeedback("Link copied");
-  };
+    setProfile((prev: any) => ({
+      ...prev,
+      ...payload,
+    }));
 
-  const handleShare = async () => {
-    const url = `${window.location.origin}/verify?q=${profile.badgeNumber}`;
+    setShowContextModal(false);
+    setFeedback("Core disclosure saved");
+  };
 
-    if (navigator.share) {
-      await navigator.share({ title: "Verify me", url });
-    } else {
-      await navigator.clipboard.writeText(url);
-      setFeedback("Link copied");
-    }
-  };
+  const deleteContext = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
 
-  const handleGenerateImage = async () => {
-    if (!cardRef.current) return;
+    await updateDoc(doc(db, "valid_profiles", user.uid), {
+      contextDisclosures: [],
+      contextNotes: "",
+      contextUpdatedAt: null,
+    });
 
-    const canvas = await html2canvas(cardRef.current, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#000",
-    });
+    setContextDisclosures([]);
+    setContextNotes("");
+  };
 
-    const link = document.createElement("a");
-    link.href = canvas.toDataURL();
-    link.download = "featrrr-card.png";
-    link.click();
-  };
+  // ADD POST
+  const handleAddPost = async () => {
+    const user = auth.currentUser;
+    if (!user || !newText) return;
 
-  const saveSocials = async () => {
-    const user = auth.currentUser;
-    if (!user) return;
+    let previewData = { title: "", description: "", image: "" };
 
-    await updateDoc(doc(db, "valid_profiles", user.uid), {
-      socials: { instagram, tiktok, youtube },
-    });
+    if (newLink) {
+      try {
+        const res = await fetch("/api/og", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: newLink }),
+        });
 
-    setFeedback("Socials saved (+2 pts)");
-  };
+        previewData = await res.json();
+      } catch {}
+    }
 
-  const addPost = async () => {
-    const user = auth.currentUser;
-    if (!user) return;
+    const now = new Date();
 
-    const newPost = {
-      text: postText,
-      link: postLink,
-      createdAt: new Date(),
-    };
+    const newPost = {
+      text: newText,
+      link: newLink,
+      previewImage: previewData.image,
+      title: previewData.title,
+      description: previewData.description,
+      createdAt: now,
+      updatedAt: now,
+    };
 
-    const updated = [...(profile.postDisclosures || []), newPost];
+    const updated = [...(profile.postDisclosures || []), newPost];
 
-    await updateDoc(doc(db, "valid_profiles", user.uid), {
-      postDisclosures: updated,
-    });
+    await updateDoc(doc(db, "valid_profiles", user.uid), {
+      postDisclosures: updated,
+    });
 
-    setProfile((prev: any) => ({
-      ...prev,
-      postDisclosures: updated,
-    }));
+    setProfile((prev: any) => ({
+      ...prev,
+      postDisclosures: updated,
+    }));
 
-    setPostText("");
-    setPostLink("");
-  };
+    setNewText("");
+    setNewLink("");
+    setShowModal(false);
+  };
 
-  const deletePost = async (i: number) => {
-    const user = auth.currentUser;
-    if (!user) return;
+  // DELETE POST
+  const handleDeletePost = async () => {
+    const user = auth.currentUser;
+    if (!user || activePostIndex === null) return;
 
-    const updated = [...(profile.postDisclosures || [])];
-    updated.splice(i, 1);
+    const updated = [...(profile.postDisclosures || [])];
+    updated.splice(activePostIndex, 1);
 
-    await updateDoc(doc(db, "valid_profiles", user.uid), {
-      postDisclosures: updated,
-    });
+    await updateDoc(doc(db, "valid_profiles", user.uid), {
+      postDisclosures: updated,
+    });
 
-    setProfile((prev: any) => ({
-      ...prev,
-      postDisclosures: updated,
-    }));
-  };
+    setProfile((prev: any) => ({
+      ...prev,
+      postDisclosures: updated,
+    }));
 
-  const saveContext = async () => {
-    const user = auth.currentUser;
-    if (!user) return;
+    setActivePost(null);
+  };
 
-    await updateDoc(doc(db, "valid_profiles", user.uid), {
-      contextDisclosures,
-    });
+  // EDIT POST
+  const handleEditPost = async () => {
+    const user = auth.currentUser;
+    if (!user || activePostIndex === null) return;
 
-    setFeedback("Context saved (+2 pts)");
-  };
+    let previewData = {
+      title: activePost.title,
+      description: activePost.description,
+      image: activePost.previewImage,
+    };
 
-  if (loading || !profile)
-    return (
-      <div className="h-screen flex items-center justify-center">
-        Loading...
-      </div>
-    );
+    if (newLink !== activePost.link) {
+      try {
+        const res = await fetch("/api/og", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: newLink }),
+        });
 
-  // ✅ FIX APPLIED HERE
-  const creatorData = {
-    id: auth.currentUser?.uid || "",
-    displayName: profile.displayName || "",
-    score,
-    status: profile.status || "active",
-    subscriptionStatus: profile.subscriptionStatus || "free",
-    profilePhoto: preview || profile.photoURL || "",
-    badgeNumber: profile.badgeNumber || "",
-  };
+        previewData = await res.json();
+      } catch {}
+    }
 
-  return (
-    <div className="min-h-screen bg-black text-white flex justify-center px-4 py-10">
-      <div className="w-full max-w-5xl space-y-10">
+    const updated = [...(profile.postDisclosures || [])];
 
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold">Transparency Dashboard</h1>
-        </div>
+    updated[activePostIndex] = {
+      ...updated[activePostIndex],
+      text: newText,
+      link: newLink,
+      previewImage: previewData.image,
+      title: previewData.title,
+      description: previewData.description,
+      updatedAt: new Date(),
+    };
 
-        {/* CARD */}
-        <div className="flex justify-center">
-          <div className="w-full max-w-sm">
-            <CreatorCard creator={creatorData} />
-          </div>
-        </div>
+    await updateDoc(doc(db, "valid_profiles", user.uid), {
+      postDisclosures: updated,
+    });
 
-        {/* EXPORT CARD */}
-        <div className="fixed -left-[9999px]">
-          <div ref={cardRef} className="w-[1080px] h-[1080px] flex items-center justify-center bg-black">
-            <div className="scale-[2.2]">
-              <CreatorCard creator={creatorData} />
-            </div>
-          </div>
-        </div>
+    setProfile((prev: any) => ({
+      ...prev,
+      postDisclosures: updated,
+    }));
 
-        {/* ACTIONS */}
-        <div className="bg-[#111] p-6 rounded-xl space-y-3">
-          <h3 className="text-sm text-gray-400">Actions</h3>
+    setActivePost(null);
+  };
 
-          <label className="block cursor-pointer bg-gray-800 p-3 rounded">
-            Upload Photo (+3 pts)
-            <input
-              type="file"
-              hidden
-              onChange={(e) =>
-                e.target.files && handleUpload(e.target.files[0])
-              }
-            />
-          </label>
+  if (loading || !profile)
+    return <div className="h-screen flex items-center justify-center">Loading...</div>;
 
-          <button onClick={handleGenerateImage} className="w-full bg-purple-500 p-3 rounded">
-            Download Card
-          </button>
+  const creatorData = {
+    id: auth.currentUser?.uid || "",
+    displayName: profile.displayName || "",
+    score,
+    status: profile.status || "active",
+    subscriptionStatus: profile.subscriptionStatus || "free",
+    profilePhoto: preview || profile.photoURL || "",
+    badgeNumber: profile.badgeNumber || "",
+  };
 
-          <button onClick={handleShare} className="w-full bg-orange-500 p-3 rounded">
-            Share Profile
-          </button>
+  return (
+    <div className="min-h-screen bg-black text-white flex justify-center px-4 py-10">
+      <div className="w-full max-w-5xl space-y-10">
 
-          <button onClick={handleCopyLink} className="w-full bg-gray-700 p-3 rounded">
-            Copy Link
-          </button>
-        </div>
+        <div className="flex justify-center">
+          <div className="w-full max-w-sm">
+            <CreatorCard creator={creatorData} />
 
-        {feedback && <p className="text-green-400 text-center">{feedback}</p>}
-      </div>
-    </div>
-  );
+            {(contextDisclosures.length > 0 || contextNotes) && (
+              <div className="mt-3 text-xs text-gray-400 text-center">
+                Disclosure: {contextDisclosures.join(", ")} {contextNotes}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ACTIONS */}
+        <div className="bg-[#111] p-6 rounded-xl space-y-3">
+          <label className="block cursor-pointer bg-gray-800 p-3 rounded">
+            Upload Photo
+            <input type="file" hidden onChange={(e) => e.target.files && handleUpload(e.target.files[0])} />
+          </label>
+
+          <button onClick={() => setShowContextModal(true)} className="w-full bg-gray-800 p-3 rounded">
+            Core Disclosure
+          </button>
+        </div>
+
+        {/* GRID */}
+        <div className="grid grid-cols-3 gap-2">
+          <div
+            onClick={() => setShowModal(true)}
+            className="aspect-square bg-black flex items-center justify-center text-3xl cursor-pointer border border-gray-700 rounded"
+          >
+            ➕
+          </div>
+
+          {(profile.postDisclosures || []).map((post: any, i: number) => (
+            <div
+              key={i}
+              onClick={() => {
+                setActivePost(post);
+                setActivePostIndex(i);
+                setNewText(post.text);
+                setNewLink(post.link);
+              }}
+              className="aspect-square cursor-pointer rounded overflow-hidden"
+            >
+              {post.previewImage ? (
+                <img src={post.previewImage} className="w-full h-full object-cover" />
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500 text-xs">
+                  Disclosure
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* POST MODAL */}
+        {activePost && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
+            <div className="bg-[#111] p-4 rounded-xl w-full max-w-md space-y-3">
+
+              {activePost.previewImage && (
+                <img src={activePost.previewImage} className="w-full h-52 object-cover rounded" />
+              )}
+
+              <textarea
+                value={newText}
+                onChange={(e) => setNewText(e.target.value)}
+                className="w-full p-2 bg-black border border-gray-700 rounded"
+              />
+
+              <input
+                value={newLink}
+                onChange={(e) => setNewLink(e.target.value)}
+                className="w-full p-2 bg-black border border-gray-700 rounded"
+              />
+
+              {activePost.updatedAt && (
+                <p className="text-xs text-gray-500">
+                  Last updated:{" "}
+                  {new Date(
+                    activePost.updatedAt.seconds
+                      ? activePost.updatedAt.seconds * 1000
+                      : activePost.updatedAt
+                  ).toLocaleDateString()}
+                </p>
+              )}
+
+              <button onClick={handleEditPost} className="w-full bg-purple-500 p-2 rounded">
+                Save Edit
+              </button>
+
+              <button onClick={handleDeletePost} className="w-full bg-red-500 p-2 rounded">
+                Delete
+              </button>
+
+              <button onClick={() => setActivePost(null)} className="w-full bg-gray-700 p-2 rounded">
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
 }

@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { useParams } from "next/navigation";
-import Badge from "@/components/Badge";
 import { calculateScore } from "@/utils/calculateScore";
+import CreatorCard from "@/components/CreatorCard";
+import html2canvas from "html2canvas";
 
 export default function ProfilePage() {
   const params = useParams();
@@ -13,6 +14,9 @@ export default function ProfilePage() {
 
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [activePost, setActivePost] = useState<any>(null);
+
+  const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -52,146 +56,211 @@ export default function ProfilePage() {
     );
   }
 
-  const username =
-    profile.displayName ||
-    profile.email?.split("@")[0] ||
-    "user";
-
   const score = calculateScore(profile);
 
-  const persistent = profile?.persistentDisclosures || {};
+  const creatorData = {
+    id: uid,
+    displayName: profile.displayName || "user",
+    score,
+    status: profile.status || "active",
+    subscriptionStatus: profile.subscriptionStatus || "free",
+    profilePhoto: profile.photoURL || "",
+    badgeNumber: profile.badgeNumber || "",
+  };
+
+  // 🔥 SORT POSTS (MOST RECENT FIRST)
+  const posts = (profile?.postDisclosures || []).sort((a: any, b: any) => {
+    const getTime = (p: any) =>
+      p.updatedAt?.seconds
+        ? p.updatedAt.seconds
+        : p.createdAt?.seconds
+        ? p.createdAt.seconds
+        : new Date(p.updatedAt || p.createdAt || 0).getTime();
+
+    return getTime(b) - getTime(a);
+  });
+
   const context = profile?.contextDisclosures || [];
-  const posts = profile?.postDisclosures || [];
+  const contextNotes = profile?.contextNotes || "";
+
+  // 🔥 SHARE CARD
+  const handleDownloadCard = async () => {
+    if (!cardRef.current) return;
+
+    const canvas = await html2canvas(cardRef.current, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#000",
+    });
+
+    const link = document.createElement("a");
+    link.href = canvas.toDataURL();
+    link.download = "featrrr-profile.png";
+    link.click();
+  };
+
+  const handleShareLink = async () => {
+    const url = window.location.href;
+
+    if (navigator.share) {
+      await navigator.share({
+        title: "Check this creator",
+        url,
+      });
+    } else {
+      await navigator.clipboard.writeText(url);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center py-10 px-6 gap-6">
 
-      {/* ================= PROFILE CARD ================= */}
-      <div className="w-full max-w-md bg-[#111] rounded-xl p-6 text-center border border-gray-800 shadow-lg">
+      {/* ================= CREATOR CARD ================= */}
+      <div className="w-full max-w-sm">
+        <CreatorCard creator={creatorData} />
 
-        {/* IMAGE */}
-        <div className="w-full h-[220px] bg-gray-800 rounded-md mb-4 overflow-hidden">
-          {profile.photoURL ? (
-            <img
-              src={profile.photoURL}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="h-full flex items-center justify-center text-gray-500">
-              No Photo
-            </div>
-          )}
-        </div>
-
-        {/* NAME */}
-        <h1 className="text-xl font-semibold">@{username}</h1>
-
-        {/* BADGES */}
-        <div className="flex justify-center gap-2 mt-2">
-          {profile.subscriptionStatus === "active" && (
-            <Badge type="premium" />
-          )}
-        </div>
-
-        {/* STATUS */}
-        <div className="mt-2 text-sm text-gray-400">
-          {profile.subscriptionStatus === "active"
-            ? "Verified Transparency Profile"
-            : "Basic Profile"}
-        </div>
-
-        {/* SCORE */}
-        <div className="mt-4 text-sm">
-          Transparency Score: {score}/100
-        </div>
-
-        <div className="w-full bg-gray-700 h-2 rounded mt-1">
+        {/* 🔥 HIDDEN EXPORT CARD */}
+        <div className="fixed -left-[9999px]">
           <div
-            className="h-2 rounded bg-gradient-to-r from-purple-500 to-orange-400"
-            style={{ width: `${score}%` }}
-          />
+            ref={cardRef}
+            className="w-[1080px] h-[1080px] flex items-center justify-center bg-black"
+          >
+            <div className="scale-[2.2]">
+              <CreatorCard creator={creatorData} />
+            </div>
+          </div>
         </div>
 
-      </div>
+        {/* 🔥 CORE DISCLOSURE */}
+        {(context.length > 0 || contextNotes) && (
+          <div className="mt-3 text-xs text-gray-400 text-center">
+            <p>
+              Disclosure: {context.join(", ")}
+              {contextNotes && ` — ${contextNotes}`}
+            </p>
 
-      {/* ================= PERSISTENT DISCLOSURES ================= */}
-      <div className="w-full max-w-md bg-[#111] p-5 rounded-xl">
-        <h3 className="text-sm text-gray-400 mb-3">
-          Core Disclosures
-        </h3>
-
-        {Object.entries(persistent)
-          .filter(([_, val]) => val === true)
-          .map(([key]) => (
-            <div key={key} className="text-sm text-green-400 mb-1">
-              ✔ {key}
-            </div>
-          ))}
-
-        {Object.values(persistent).every((v) => !v) && (
-          <p className="text-gray-500 text-sm">
-            No core disclosures provided
-          </p>
-        )}
-      </div>
-
-      {/* ================= CONTEXT DISCLOSURES ================= */}
-      <div className="w-full max-w-md bg-[#111] p-5 rounded-xl">
-        <h3 className="text-sm text-gray-400 mb-3">
-          Transparency Context
-        </h3>
-
-        {context
-          .filter((d: any) => d.enabled)
-          .map((d: any, i: number) => (
-            <div key={i} className="mb-3">
-              <p className="text-green-400 text-sm">
-                ✔ {d.type}
+            {profile.contextUpdatedAt && (
+              <p className="text-[10px] text-gray-500 mt-1">
+                Last updated:{" "}
+                {new Date(
+                  profile.contextUpdatedAt.seconds
+                    ? profile.contextUpdatedAt.seconds * 1000
+                    : profile.contextUpdatedAt
+                ).toLocaleDateString()}
               </p>
-
-              {d.note && (
-                <p className="text-gray-400 text-xs mt-1">
-                  {d.note}
-                </p>
-              )}
-            </div>
-          ))}
-
-        {context.filter((d: any) => d.enabled).length === 0 && (
-          <p className="text-gray-500 text-sm">
-            No additional context provided
-          </p>
+            )}
+          </div>
         )}
+
+        {/* 🔥 SHARE BUTTONS */}
+        <div className="flex gap-2 mt-4">
+          <button
+            onClick={handleDownloadCard}
+            className="flex-1 bg-purple-500 p-2 rounded text-sm"
+          >
+            Download Card
+          </button>
+
+          <button
+            onClick={handleShareLink}
+            className="flex-1 bg-orange-500 p-2 rounded text-sm"
+          >
+            Share Profile
+          </button>
+        </div>
       </div>
 
-      {/* ================= POST DISCLOSURES ================= */}
-      <div className="w-full max-w-md bg-[#111] p-5 rounded-xl">
-        <h3 className="text-sm text-gray-400 mb-3">
-          Transparency Activity
-        </h3>
+      {/* ================= GRID ================= */}
+      <div className="w-full max-w-5xl grid grid-cols-3 gap-2">
 
-        {posts.map((p: any, i: number) => (
-          <div key={i} className="mb-4 border-b border-gray-800 pb-3">
-            <p className="text-sm">{p.text}</p>
-
-            {p.link && (
-              <a
-                href={p.link}
-                target="_blank"
-                className="text-blue-400 text-xs"
-              >
-                View Post
-              </a>
+        {posts.map((post: any, i: number) => (
+          <div
+            key={i}
+            onClick={() => setActivePost(post)}
+            className="aspect-square cursor-pointer rounded overflow-hidden border border-gray-800"
+          >
+            {post.previewImage ? (
+              <img
+                src={post.previewImage}
+                className="w-full h-full object-cover"
+              />
+            ) : post.link ? (
+              <img
+                src={`https://image.thum.io/get/${post.link}`}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500 text-xs">
+                Disclosure
+              </div>
             )}
           </div>
         ))}
 
         {posts.length === 0 && (
-          <p className="text-gray-500 text-sm">
-            No activity yet
-          </p>
+          <div className="col-span-3 text-center text-gray-500 text-sm py-10">
+            No transparency activity yet
+          </div>
         )}
       </div>
+
+      {/* ================= MODAL ================= */}
+      {activePost && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <div className="bg-[#111] p-4 rounded-xl w-full max-w-md space-y-3">
+
+            {activePost.previewImage && (
+              <img
+                src={activePost.previewImage}
+                className="w-full h-52 object-cover rounded"
+              />
+            )}
+
+            {activePost.title && (
+              <p className="text-sm font-semibold">{activePost.title}</p>
+            )}
+
+            {activePost.description && (
+              <p className="text-xs text-gray-400">
+                {activePost.description}
+              </p>
+            )}
+
+            <p className="text-sm mt-3">
+              📌 Disclosure: {activePost.text}
+            </p>
+
+            {(activePost.updatedAt || activePost.createdAt) && (
+              <p className="text-xs text-gray-500">
+                Last updated:{" "}
+                {new Date(
+                  activePost.updatedAt?.seconds
+                    ? activePost.updatedAt.seconds * 1000
+                    : activePost.updatedAt ||
+                      activePost.createdAt
+                ).toLocaleDateString()}
+              </p>
+            )}
+
+            {activePost.link && (
+              <a
+                href={activePost.link}
+                target="_blank"
+                className="text-blue-400 text-xs"
+              >
+                View original
+              </a>
+            )}
+
+            <button
+              onClick={() => setActivePost(null)}
+              className="w-full bg-gray-700 p-2 rounded"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* CTA */}
       <div className="text-center max-w-sm text-gray-400 text-sm">
