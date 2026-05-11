@@ -1,7 +1,7 @@
 export function calculateScore(profile: any) {
   const isPaid = profile?.subscriptionStatus === "active";
 
-  // 🔥 BASE
+  // ✅ BASELINE (your correct logic)
   let score = isPaid ? 75 : 60;
 
   const now = Date.now();
@@ -15,18 +15,18 @@ export function calculateScore(profile: any) {
 
   const lastActivity =
     toMs(profile?.activity?.lastUpdated) ||
-    toMs(profile?.lastDisclosureUpdate) ||
+    toMs(profile?.contextUpdatedAt) ||
     toMs(profile?.lastPostDisclosure);
 
   // =========================
-  // 📸 PROFILE PHOTO
+  // 📸 PROFILE PHOTO (+3)
   // =========================
   if (profile?.photoURL) {
     score += 3;
   }
 
   // =========================
-  // 🔗 SOCIALS
+  // 🔗 SOCIALS (+3 each)
   // =========================
   const socials = profile?.socials || {};
 
@@ -35,31 +35,23 @@ export function calculateScore(profile: any) {
   if (socials.youtube) score += 3;
 
   // =========================
-  // 🧾 PERSISTENT DISCLOSURES
-  // =========================
-  const persistent = profile?.persistentDisclosures || {};
-
-  const persistentCount = Object.values(persistent).filter(
-    (v) => v === true
-  ).length;
-
-  score += Math.min(persistentCount * 2, 10);
-
-  // =========================
-  // 🧾 CONTEXT DISCLOSURES (NEW)
+  // 🧾 CORE DISCLOSURES (+2)
+  // ✅ FIXED (string array)
   // =========================
   const context = profile?.contextDisclosures || [];
 
-  const activeContext = context.filter((d: any) => d.enabled === true);
-
-  score += Math.min(activeContext.length * 2, 12);
+  if (Array.isArray(context) && context.length > 0) {
+    score += 2;
+  }
 
   // =========================
-  // 🧾 POST DISCLOSURES
+  // 🧾 POST DISCLOSURES (+1 each, max 10)
   // =========================
   const posts = profile?.postDisclosures || [];
 
-  score += Math.min(posts.length * 2, 10);
+  if (posts.length > 0) {
+    score += Math.min(posts.length, 10);
+  }
 
   // =========================
   // 🧠 ACTIVITY BONUS
@@ -107,7 +99,7 @@ export function calculateScore(profile: any) {
   // =========================
   // 🛑 FLOOR
   // =========================
-  score = Math.max(score, 50);
+  score = Math.max(score, isPaid ? 65 : 60);
 
   return Math.round(score);
-}
+} 
