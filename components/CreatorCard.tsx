@@ -18,7 +18,11 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
 
   const safeId = creator.id || "";
   const name = creator.displayName || "user";
-  const score = creator.score ?? 0;
+
+  // ✅ HARD FIX SCORE (prevents NaN / undefined bugs)
+  const scoreRaw = Number(creator.score);
+  const score = isNaN(scoreRaw) ? 0 : Math.max(0, Math.min(scoreRaw, 100));
+
   const badge = creator.badgeNumber || "—";
 
   const [imageError, setImageError] = useState(false);
@@ -42,7 +46,7 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
           {/* CARD */}
           <div className="bg-[#0b0b0f] rounded-2xl overflow-hidden shadow-xl">
 
-            {/* 🔥 IMAGE SECTION (CLEAN + DOMINANT) */}
+            {/* IMAGE */}
             <div className="relative h-56 w-full bg-gray-900 overflow-hidden">
 
               {photo && !imageError ? (
@@ -60,10 +64,10 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
                 </div>
               )}
 
-              {/* DARK GRADIENT OVERLAY (adds polish) */}
+              {/* Overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
-              {/* BADGE + STATUS ROW */}
+              {/* Top Row */}
               <div className="absolute top-3 left-3 right-3 flex justify-between items-center">
 
                 <div className="px-2 py-1 text-[10px] rounded bg-black/70 text-gray-300">
@@ -83,7 +87,7 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
                 </div>
               </div>
 
-              {/* NAME OVER IMAGE */}
+              {/* Name */}
               <div className="absolute bottom-3 left-4 right-4">
                 <h2 className="text-lg font-semibold truncate text-white">
                   @{name}
@@ -92,14 +96,14 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
 
             </div>
 
-            {/* 🔥 SCORE SECTION (FOCAL POINT) */}
+            {/* SCORE SECTION */}
             <div className="px-5 pt-5 pb-4">
 
               <div className="flex items-center justify-between">
 
                 <div>
-                  <p className="text-[10px] text-gray-400">
-                    TRANSPARENCY SCORE
+                  <p className="text-[10px] text-gray-400 tracking-wide">
+                    SOCIAL CREDIBILITY SCORE
                   </p>
 
                   <div className="flex items-end gap-2 mt-1">
@@ -140,7 +144,7 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
                 <div
                   className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-orange-400 transition-all"
                   style={{
-                    width: `${Math.max(0, Math.min(score, 100))}%`,
+                    width: `${score}%`,
                   }}
                 />
               </div>
@@ -159,4 +163,4 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
       </div>
     </Link>
   );
-}
+} 
