@@ -4,6 +4,46 @@ export default function Home() {
   return (
     <main className="bg-black text-white">
 
+      {/* 🔥 NAVBAR (NEW - MOBILE FIXED) */}
+      <nav className="sticky top-0 z-50 bg-black/80 backdrop-blur border-b border-gray-800">
+        <div className="flex items-center justify-between px-4 md:px-10 py-3">
+
+          {/* LOGO */}
+          <div className="text-sm md:text-base font-semibold tracking-wide">
+            Featrrr Valid
+          </div>
+
+          {/* LINKS */}
+          <div className="flex items-center gap-4 md:gap-6 text-xs md:text-sm text-gray-300">
+            <a href="#for-creators" className="hover:text-white whitespace-nowrap">
+              Creators
+            </a>
+            <a href="#for-brands" className="hover:text-white whitespace-nowrap">
+              Brands
+            </a>
+            <a href="/verify" className="hover:text-white whitespace-nowrap">
+              Verify
+            </a>
+            <a href="/login">
+              <button className="px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500 to-orange-400 text-white text-xs md:text-sm">
+                Login
+              </button>
+            </a>
+          </div>
+
+        </div>
+      </nav>
+
+      {/* 🔥 PROMINENT HEADLINE (NEW) */}
+      <section className="px-6 md:px-12 pt-16 pb-6">
+        <h1 className="text-3xl md:text-5xl font-bold leading-tight max-w-3xl">
+          Your social credibility score{" "}
+          <span className="bg-gradient-to-r from-purple-400 to-orange-400 text-transparent bg-clip-text">
+            by Featrrr Valid
+          </span>
+        </h1>
+      </section>
+
       {/* HERO */}
       <Hero />
 
