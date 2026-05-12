@@ -10,308 +10,304 @@ import { uploadProfileImage } from "@/lib/upload";
 export const dynamic = "force-dynamic";
 
 export default function Dashboard() {
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [feedback, setFeedback] = useState("");
-  const [preview, setPreview] = useState<string | null>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [contextDisclosures, setContextDisclosures] = useState<string[]>([]);
-  const [contextNotes, setContextNotes] = useState("");
-  const [showContextModal, setShowContextModal] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
 
-  const [showModal, setShowModal] = useState(false);
-  const [newText, setNewText] = useState("");
-  const [newLink, setNewLink] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [activePost, setActivePost] = useState<any>(null);
+  const [activePostIndex, setActivePostIndex] = useState<number | null>(null);
 
-  useEffect(() => {
-    const unsub = auth.onAuthStateChanged(async (user) => {
-      if (!user) return (window.location.href = "/login");
+  const [newText, setNewText] = useState("");
+  const [newLink, setNewLink] = useState("");
 
-      const snap = await getDoc(doc(db, "valid_profiles", user.uid));
-      const data = snap.data();
+  const [ogData, setOgData] = useState<any>(null);
+  const [ogLoading, setOgLoading] = useState(false);
 
-      setProfile(data);
-      setContextDisclosures(data?.contextDisclosures || []);
-      setContextNotes(data?.contextNotes || "");
-      setLoading(false);
-    });
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged(async (user) => {
+      if (!user) return (window.location.href = "/login");
 
-    return () => unsub();
-  }, []);
+      const snap = await getDoc(doc(db, "valid_profiles", user.uid));
+      const data = snap.data();
+      if (!data) return;
 
-  const score = calculateScore({
-    ...profile,
-    contextDisclosures,
-  });
+      setProfile(data);
+      setLoading(false);
+    });
 
-  // =========================
-  // SHARE / COPY
-  // =========================
-  const handleCopyLink = async () => {
-    const url = `${window.location.origin}/profile/${auth.currentUser?.uid}`;
-    await navigator.clipboard.writeText(url);
-    setFeedback("Link copied");
-  };
+    return () => unsub();
+  }, []);
 
-  const handleShare = async () => {
-    const url = `${window.location.origin}/profile/${auth.currentUser?.uid}`;
+  const score = calculateScore(profile || {});
 
-    if (navigator.share) {
-      await navigator.share({ title: "My Featrrr Profile", url });
-    } else {
-      await navigator.clipboard.writeText(url);
-      setFeedback("Link copied");
-    }
-  };
+  // ================= OG FETCH =================
+  const fetchOG = async (url: string) => {
+    if (!url) return;
 
-  // =========================
-  // UPLOAD
-  // =========================
-  const handleUpload = async (file: File) => {
-    const user = auth.currentUser;
-    if (!file || !user) return;
+    try {
+      setOgLoading(true);
 
-    const url = await uploadProfileImage(file, user.uid);
+      const res = await fetch("/api/og", {
+        method: "POST",
+        body: JSON.stringify({ url }),
+      });
 
-    await fetch("/api/update-profile-photo", {
-      method: "POST",
-      body: JSON.stringify({ userId: user.uid, photoURL: url }),
-    });
+      const data = await res.json();
+      setOgData(data);
+    } catch {
+      setOgData(null);
+    } finally {
+      setOgLoading(false);
+    }
+  };
 
-    const snap = await getDoc(doc(db, "valid_profiles", user.uid));
-    setProfile(snap.data());
-    setPreview(url);
-  };
+  useEffect(() => {
+    if (newLink) {
+      const delay = setTimeout(() => fetchOG(newLink), 500);
+      return () => clearTimeout(delay);
+    } else {
+      setOgData(null);
+    }
+  }, [newLink]);
 
-  // =========================
-  // CORE DISCLOSURES
-  // =========================
-  const disclosureOptions = [
-    { key: "performanceDrugs", label: "Uses performance enhancement drugs" },
-    { key: "cosmeticSurgery", label: "Cosmetic surgery" },
-    { key: "notOriginalContent", label: "Not original content" },
-    { key: "dueDiligence", label: "Due diligence on sponsored content" },
-    { key: "sourcesCited", label: "Sources cited" },
-    { key: "notOwnedResults", label: "Not all owned results" },
-    { key: "notAccredited", label: "Not accredited" },
-  ];
+  // ================= ADD POST =================
+  const handleAddPost = async () => {
+    if (!newText || !newLink) return;
 
-  const saveContext = async () => {
-    const user = auth.currentUser;
-    if (!user) return;
+    const now = new Date();
 
-    const payload = {
-      contextDisclosures,
-      contextNotes,
-      contextUpdatedAt: new Date(),
-    };
+    const newPost = {
+      text: newText,
+      link: newLink,
+      previewImage: ogData?.image || "",
+      title: ogData?.title || "",
+      description: ogData?.description || "",
+      createdAt: now,
+      updatedAt: now,
+    };
 
-    await updateDoc(doc(db, "valid_profiles", user.uid), payload);
-    setProfile((prev: any) => ({ ...prev, ...payload }));
-    setShowContextModal(false);
-  };
+    const updated = [...(profile.postDisclosures || []), newPost];
 
-  // =========================
-  // ADD POST
-  // =========================
-  const handleAddPost = async () => {
-    const user = auth.currentUser;
-    if (!user || !newText) return;
+    await updateDoc(doc(db, "valid_profiles", auth.currentUser!.uid), {
+      postDisclosures: updated,
+    });
 
-    const now = new Date();
+    setProfile((prev: any) => ({
+      ...prev,
+      postDisclosures: updated,
+    }));
 
-    const newPost = {
-      text: newText,
-      link: newLink,
-      createdAt: now,
-      updatedAt: now,
-    };
+    setNewText("");
+    setNewLink("");
+    setOgData(null);
+    setShowModal(false);
+  };
 
-    const updated = [...(profile.postDisclosures || []), newPost];
+  // ================= EDIT =================
+  const handleEditPost = async () => {
+    if (activePostIndex === null) return;
 
-    await updateDoc(doc(db, "valid_profiles", user.uid), {
-      postDisclosures: updated,
-    });
+    const updated = [...(profile.postDisclosures || [])];
 
-    setProfile((prev: any) => ({
-      ...prev,
-      postDisclosures: updated,
-    }));
+    updated[activePostIndex] = {
+      ...updated[activePostIndex],
+      text: newText,
+      link: newLink,
+      previewImage: ogData?.image || activePost.previewImage,
+      title: ogData?.title || activePost.title,
+      description: ogData?.description || activePost.description,
+      updatedAt: new Date(),
+    };
 
-    setNewText("");
-    setNewLink("");
-    setShowModal(false);
-  };
+    await updateDoc(doc(db, "valid_profiles", auth.currentUser!.uid), {
+      postDisclosures: updated,
+    });
 
-  if (loading || !profile) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        Loading...
-      </div>
-    );
-  }
+    setProfile((prev: any) => ({
+      ...prev,
+      postDisclosures: updated,
+    }));
 
-  const creatorData = {
-    id: auth.currentUser?.uid || "",
-    displayName: profile.displayName || "",
-    score,
-    status: profile.status || "active",
-    subscriptionStatus: profile.subscriptionStatus || "free",
-    profilePhoto: preview || profile.photoURL || "",
-    badgeNumber: profile.badgeNumber || "",
-  };
+    setActivePost(null);
+  };
 
-  return (
-    <div className="min-h-screen bg-black text-white flex justify-center px-4 py-10">
-      <div className="w-full max-w-5xl space-y-10">
+  // ================= DELETE =================
+  const handleDeletePost = async () => {
+    if (activePostIndex === null) return;
 
-        {/* CARD */}
-        <div className="flex justify-center">
-          <CreatorCard creator={creatorData} />
-        </div>
+    const updated = [...(profile.postDisclosures || [])];
+    updated.splice(activePostIndex, 1);
 
-        {/* ACTIONS */}
-        <div className="bg-[#111] p-6 rounded-xl space-y-3">
+    await updateDoc(doc(db, "valid_profiles", auth.currentUser!.uid), {
+      postDisclosures: updated,
+    });
 
-          <label className="block cursor-pointer bg-gray-800 p-3 rounded">
-            Upload Photo <span className="text-green-400">+3 pts</span>
-            <input
-              type="file"
-              hidden
-              onChange={(e) =>
-                e.target.files && handleUpload(e.target.files[0])
-              }
-            />
-          </label>
+    setProfile((prev: any) => ({
+      ...prev,
+      postDisclosures: updated,
+    }));
 
-          <button onClick={handleShare} className="w-full bg-purple-500 p-3 rounded">
-            Share Profile
-          </button>
+    setActivePost(null);
+  };
 
-          <button onClick={handleCopyLink} className="w-full bg-gray-700 p-3 rounded">
-            Copy Link
-          </button>
+  if (loading || !profile) {
+    return <div className="h-screen flex items-center justify-center">Loading...</div>;
+  }
 
-          <button
-            onClick={() => setShowContextModal(true)}
-            className="w-full bg-gray-800 p-3 rounded"
-          >
-            Core Disclosure <span className="text-green-400">+2 pts</span>
-          </button>
-        </div>
+  const creatorData = {
+    id: auth.currentUser?.uid || "",
+    displayName: profile.displayName || "",
+    score,
+    subscriptionStatus: profile.subscriptionStatus || "free",
+    profilePhoto: preview || profile.photoURL || "",
+    badgeNumber: profile.badgeNumber || "",
+  };
 
-        {/* GRID */}
-        <div className="grid grid-cols-3 gap-2">
+  return (
+    <div className="min-h-screen bg-black text-white flex justify-center px-4 py-10">
+      <div className="w-full max-w-5xl space-y-10">
 
-          <div
-            onClick={() => setShowModal(true)}
-            className="aspect-square flex flex-col items-center justify-center border border-gray-700 rounded cursor-pointer"
-          >
-            <span className="text-3xl">➕</span>
-            <span className="text-green-400 text-xs mt-1">+1 pt</span>
-          </div>
+        {/* CARD */}
+        <div className="flex justify-center">
+          <CreatorCard creator={creatorData} />
+        </div>
 
-          {(profile.postDisclosures || []).map((post: any, i: number) => (
-            <div
-              key={i}
-              className="aspect-square bg-gray-900 rounded"
-            />
-          ))}
+        {/* GRID */}
+        <div className="grid grid-cols-3 gap-2">
 
-        </div>
+          {/* ADD */}
+          <div
+            onClick={() => setShowModal(true)}
+            className="aspect-square flex flex-col items-center justify-center border border-gray-700 rounded cursor-pointer"
+          >
+            <span className="text-3xl">➕</span>
+            <span className="text-green-400 text-xs mt-1">+1 pt</span>
+          </div>
 
-        {/* POST MODAL */}
-        {showModal && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
-            <div className="bg-[#111] p-4 rounded-xl w-full max-w-md space-y-3">
+          {/* POSTS */}
+          {(profile.postDisclosures || []).map((post: any, i: number) => (
+            <div
+              key={i}
+              onClick={() => {
+                setActivePost(post);
+                setActivePostIndex(i);
+                setNewText(post.text);
+                setNewLink(post.link);
+                setOgData(post);
+              }}
+              className="aspect-square rounded overflow-hidden cursor-pointer"
+            >
+              <img
+                src={post.previewImage || `https://image.thum.io/get/${post.link}`}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ))}
+        </div>
 
-              <textarea
-                placeholder="Disclosure..."
-                value={newText}
-                onChange={(e) => setNewText(e.target.value)}
-                className="w-full p-2 bg-black border border-gray-700 rounded"
-              />
+        {/* ADD MODAL */}
+        {showModal && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center">
+            <div className="bg-[#0b0b0f] p-5 rounded-xl w-full max-w-md space-y-4">
 
-              <input
-                placeholder="Link (optional)"
-                value={newLink}
-                onChange={(e) => setNewLink(e.target.value)}
-                className="w-full p-2 bg-black border border-gray-700 rounded"
-              />
+              <textarea
+                placeholder="Disclosure..."
+                value={newText}
+                onChange={(e) => setNewText(e.target.value)}
+                className="w-full p-3 bg-black border border-gray-800 rounded"
+              />
 
-              <button
-                onClick={handleAddPost}
-                className="w-full bg-purple-500 p-2 rounded"
-              >
-                Post (+1 pt)
-              </button>
+              <input
+                placeholder="Paste link..."
+                value={newLink}
+                onChange={(e) => setNewLink(e.target.value)}
+                className="w-full p-3 bg-black border border-gray-800 rounded"
+              />
 
-              <button
-                onClick={() => setShowModal(false)}
-                className="w-full bg-gray-700 p-2 rounded"
-              >
-                Cancel
-              </button>
+              {/* OG PREVIEW */}
+              {ogLoading && <p className="text-xs text-gray-500">Loading preview...</p>}
 
-            </div>
-          </div>
-        )}
+              {ogData && (
+                <div className="bg-[#111] rounded-lg overflow-hidden border border-gray-800">
+                  {ogData.image && (
+                    <img src={ogData.image} className="w-full h-32 object-cover" />
+                  )}
+                  <div className="p-3">
+                    <p className="text-sm font-semibold">{ogData.title}</p>
+                    <p className="text-xs text-gray-400 mt-1 line-clamp-2">
+                      {ogData.description}
+                    </p>
+                  </div>
+                </div>
+              )}
 
-        {/* CORE MODAL */}
-        {showContextModal && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
-            <div className="bg-[#111] p-4 rounded-xl w-full max-w-md space-y-3">
+              <button
+                disabled={!newLink}
+                onClick={handleAddPost}
+                className={`w-full p-3 rounded ${
+                  newLink ? "bg-purple-500" : "bg-gray-700"
+                }`}
+              >
+                Post (+1 pt)
+              </button>
 
-              {disclosureOptions.map((item) => (
-                <button
-                  key={item.key}
-                  onClick={() =>
-                    setContextDisclosures((prev) =>
-                      prev.includes(item.key)
-                        ? prev.filter((t) => t !== item.key)
-                        : [...prev, item.key]
-                    )
-                  }
-                  className={`p-2 rounded border text-left ${
-                    contextDisclosures.includes(item.key)
-                      ? "border-green-500 text-green-400"
-                      : "border-gray-700 text-gray-300"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
+              <button onClick={() => setShowModal(false)} className="w-full bg-gray-700 p-2 rounded">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
-              <textarea
-                placeholder="Optional notes"
-                value={contextNotes}
-                onChange={(e) => setContextNotes(e.target.value)}
-                className="w-full p-2 bg-black border border-gray-700 rounded"
-              />
+        {/* EDIT MODAL */}
+        {activePost && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center">
+            <div className="bg-[#0b0b0f] p-5 rounded-xl w-full max-w-md space-y-4">
 
-              <button
-                onClick={saveContext}
-                className="w-full bg-purple-500 p-2 rounded"
-              >
-                Save (+2 pts)
-              </button>
+              <textarea
+                value={newText}
+                onChange={(e) => setNewText(e.target.value)}
+                className="w-full p-3 bg-black border border-gray-800 rounded"
+              />
 
-              <button
-                onClick={() => setShowContextModal(false)}
-                className="w-full bg-gray-700 p-2 rounded"
-              >
-                Cancel
-              </button>
+              <input
+                value={newLink}
+                onChange={(e) => setNewLink(e.target.value)}
+                className="w-full p-3 bg-black border border-gray-800 rounded"
+              />
 
-            </div>
-          </div>
-        )}
+              {/* OG PREVIEW */}
+              {ogData && (
+                <div className="bg-[#111] rounded-lg overflow-hidden border border-gray-800">
+                  {ogData.image && (
+                    <img src={ogData.image} className="w-full h-32 object-cover" />
+                  )}
+                  <div className="p-3">
+                    <p className="text-sm font-semibold">{ogData.title}</p>
+                    <p className="text-xs text-gray-400 mt-1 line-clamp-2">
+                      {ogData.description}
+                    </p>
+                  </div>
+                </div>
+              )}
 
-        {feedback && (
-          <p className="text-green-400 text-center">{feedback}</p>
-        )}
+              <button onClick={handleEditPost} className="w-full bg-purple-500 p-3 rounded">
+                Save Changes
+              </button>
 
-      </div>
-    </div>
-  );
+              <button onClick={handleDeletePost} className="w-full bg-red-500 p-3 rounded">
+                Delete
+              </button>
+
+              <button onClick={() => setActivePost(null)} className="w-full bg-gray-700 p-2 rounded">
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
 }
