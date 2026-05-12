@@ -4,7 +4,7 @@ export default function Home() {
   return (
     <main className="bg-black text-white">
 
-      {/* 🔥 NAVBAR (NEW - MOBILE FIXED) */}
+      {/* 🔥 NAVBAR */}
       <nav className="sticky top-0 z-50 bg-black/80 backdrop-blur border-b border-gray-800">
         <div className="flex items-center justify-between px-4 md:px-10 py-3">
 
@@ -14,7 +14,7 @@ export default function Home() {
           </div>
 
           {/* LINKS */}
-          <div className="flex items-center gap-4 md:gap-6 text-xs md:text-sm text-gray-300">
+          <div className="flex items-center gap-3 md:gap-6 text-[11px] md:text-sm text-gray-300">
             <a href="#for-creators" className="hover:text-white whitespace-nowrap">
               Creators
             </a>
@@ -25,7 +25,7 @@ export default function Home() {
               Verify
             </a>
             <a href="/login">
-              <button className="px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500 to-orange-400 text-white text-xs md:text-sm">
+              <button className="px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500 to-orange-400 text-white text-[11px] md:text-sm">
                 Login
               </button>
             </a>
@@ -34,21 +34,30 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* 🔥 PROMINENT HEADLINE (NEW) */}
-      <section className="px-6 md:px-12 pt-16 pb-6">
+      {/* 🔥 HEADLINE */}
+      <section className="px-6 md:px-12 pt-14 pb-6">
         <h1 className="text-3xl md:text-5xl font-bold leading-tight max-w-3xl">
           Your social credibility score{" "}
           <span className="bg-gradient-to-r from-purple-400 to-orange-400 text-transparent bg-clip-text">
             by Featrrr Valid
           </span>
         </h1>
+
+        {/* 🔥 MOBILE SUPPORT TEXT */}
+        <p className="text-gray-400 mt-4 max-w-md text-sm md:text-base">
+          Build trust, grow faster, and turn transparency into opportunity.
+        </p>
       </section>
 
-      {/* HERO */}
-      <Hero />
+      {/* 🔥 HERO IMAGE (FORCED UNDER TEXT ON MOBILE) */}
+      <section className="px-6 md:px-12 pb-10">
+        <div className="w-full max-w-md md:max-w-none mx-auto">
+          <Hero />
+        </div>
+      </section>
 
       {/* 🔥 HOW IT WORKS */}
-      <section className="px-6 md:px-12 py-20 max-w-6xl">
+      <section className="px-6 md:px-12 py-16 md:py-20 max-w-6xl">
         <h2 className="text-2xl font-semibold mb-6">
           How it works
         </h2>

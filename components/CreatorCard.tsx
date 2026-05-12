@@ -11,15 +11,18 @@ type Creator = {
   subscriptionStatus?: string;
   profilePhoto?: string;
   badgeNumber?: number | string;
-  contextDisclosures?: string[];
 };
 
 export default function CreatorCard({ creator }: { creator: Creator }) {
   const isPaid = creator.subscriptionStatus === "active";
 
-  // ✅ SAFE SCORE
+  const safeId = creator.id || "";
+  const name = creator.displayName || "user";
+
   const scoreRaw = Number(creator.score);
   const score = isNaN(scoreRaw) ? 0 : Math.max(0, Math.min(scoreRaw, 100));
+
+  const badge = creator.badgeNumber || "—";
 
   const [imageError, setImageError] = useState(false);
 
@@ -32,136 +35,123 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
     setImageError(false);
   }, [creator.profilePhoto]);
 
-  const disclosures = creator.contextDisclosures || [];
-
-  // 🔥 BADGE SYSTEM
-  const getBadgeStyle = (score: number) => {
-    if (score <= 74) return "bg-green-500 text-black";
-    if (score <= 85) return "bg-blue-500 text-white";
-    if (score <= 92) return "bg-yellow-400 text-black";
-    return "bg-gradient-to-r from-purple-500 to-orange-400 text-white";
-  };
-
-  // 🔥 LABEL UNDER SCORE
-  const getScoreLabel = (score: number) => {
-    if (score <= 74) return "Low credibility";
-    if (score <= 85) return "Growing trust";
-    if (score <= 92) return "High credibility";
-    return "Elite verified";
-  };
-
   return (
-    <Link href={creator.id ? `/profile/${creator.id}` : "#"}>
-      <div className="w-full max-w-2xl mx-auto cursor-pointer">
+    <Link href={safeId ? `/profile/${safeId}` : "#"}>
+      <div className="w-full max-w-md mx-auto cursor-pointer">
 
         {/* BORDER */}
         <div className="rounded-2xl p-[1px] bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400">
 
-          <div className="bg-[#0b0b0f] rounded-2xl p-4 space-y-4">
+          {/* CARD */}
+          <div className="bg-[#0b0b0f] rounded-2xl overflow-hidden shadow-xl">
 
-            {/* TOP ROW */}
-            <div className="flex gap-4 items-center">
+            {/* IMAGE (FIXED HEIGHT) */}
+            <div className="relative h-40 w-full bg-gray-900 overflow-hidden">
 
-              {/* IMAGE (FIXED SIZE) */}
-              <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-900 shrink-0">
-                {photo && !imageError ? (
-                  <img
-                    src={photo}
-                    className="w-full h-full object-cover"
-                    onError={() => setImageError(true)}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-500">
+              {photo && !imageError ? (
+                <img
+                  src={photo}
+                  alt="profile"
+                  className="w-full h-full object-cover"
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-gray-500">
+                  <div className="w-14 h-14 rounded-full bg-gray-700 flex items-center justify-center text-xl">
                     👤
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
-              {/* NAME + BADGE */}
-              <div className="flex-1">
+              {/* OVERLAY */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+              {/* TOP ROW */}
+              <div className="absolute top-2 left-2 right-2 flex justify-between items-center">
 
-                    <h2 className="text-lg font-semibold truncate">
-                      @{creator.displayName || "user"}
-                    </h2>
-
-                    {/* 🔥 BADGE */}
-                    <div
-                      className={`px-2 py-1 rounded-full text-[10px] font-semibold ${getBadgeStyle(score)}`}
-                    >
-                      ✔
-                    </div>
-
-                  </div>
-
-                  <span className="text-xs text-gray-500">
-                    #{creator.badgeNumber || "—"}
-                  </span>
+                <div className="px-2 py-1 text-[9px] rounded bg-black/70 text-gray-300">
+                  #{badge}
                 </div>
 
-                <p className="text-xs text-gray-500 mt-1">
-                  {isPaid
-                    ? "Verified by Featrrr Valid"
-                    : "Free profile"}
-                </p>
-
+                <div>
+                  {isPaid ? (
+                    <div className="px-2 py-1 text-[9px] rounded-full bg-gradient-to-r from-purple-500 to-orange-400 text-white font-semibold">
+                      VALID
+                    </div>
+                  ) : (
+                    <div className="px-2 py-1 text-[9px] rounded-full bg-gray-800 text-gray-300">
+                      FREE
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* NAME */}
+              <div className="absolute bottom-2 left-3 right-3">
+                <h2 className="text-sm font-semibold truncate text-white">
+                  @{name}
+                </h2>
+              </div>
+
             </div>
 
-            {/* SCORE BLOCK */}
-            <div className="bg-[#111] rounded-xl p-4">
+            {/* SCORE SECTION */}
+            <div className="px-4 pt-4 pb-3">
 
-              <p className="text-xs text-gray-400">TRUST SCORE</p>
+              <div className="flex items-center justify-between">
 
-              <div className="flex items-end gap-2 mt-1">
-                <span className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-orange-400 text-transparent bg-clip-text">
-                  {score}
-                </span>
-                <span className="text-sm text-gray-500 mb-1">/100</span>
+                <div>
+                  <p className="text-[9px] text-gray-400 tracking-wide">
+                    SOCIAL CREDIBILITY SCORE
+                  </p>
+
+                  <div className="flex items-end gap-1 mt-1">
+                    <span className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-orange-400 text-transparent bg-clip-text">
+                      {score}
+                    </span>
+                    <span className="text-[10px] text-gray-500 mb-1">/100</span>
+                  </div>
+                </div>
+
+                {/* STATUS */}
+                <div>
+                  <p
+                    className={`text-[10px] ${
+                      creator.status === "active"
+                        ? "text-green-400"
+                        : creator.status === "under_review"
+                        ? "text-red-400"
+                        : creator.status === "watch"
+                        ? "text-yellow-400"
+                        : "text-gray-500"
+                    }`}
+                  >
+                    {creator.status === "active"
+                      ? "Active"
+                      : creator.status === "under_review"
+                      ? "Review"
+                      : creator.status === "watch"
+                      ? "Watch"
+                      : "Unknown"}
+                  </p>
+                </div>
+
               </div>
 
-              {/* 🔥 LABEL */}
-              <p className="text-xs text-gray-400 mt-1">
-                {getScoreLabel(score)}
-              </p>
-
-              {/* PROGRESS BAR */}
+              {/* BAR */}
               <div className="w-full h-2 bg-gray-800 rounded-full mt-3 overflow-hidden">
                 <div
-                  className="h-2 bg-gradient-to-r from-purple-500 to-orange-400"
+                  className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-orange-400 transition-all"
                   style={{ width: `${score}%` }}
                 />
               </div>
 
-            </div>
-
-            {/* CORE DISCLOSURES */}
-            <div>
-
-              <p className="text-xs text-gray-400 mb-2">
-                CORE DISCLOSURES
+              {/* TRUST MESSAGE */}
+              <p className="text-[10px] text-gray-500 mt-3">
+                {isPaid
+                  ? "Verified transparency"
+                  : "Upgrade for full credibility"}
               </p>
-
-              <div className="flex flex-wrap gap-2">
-
-                {disclosures.length > 0 ? (
-                  disclosures.map((d, i) => (
-                    <span
-                      key={i}
-                      className="text-[10px] px-2 py-1 rounded bg-gray-800 text-gray-300"
-                    >
-                      {d}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-xs text-gray-500">
-                    No disclosures yet
-                  </span>
-                )}
-
-              </div>
 
             </div>
 
