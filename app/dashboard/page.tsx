@@ -17,18 +17,19 @@ export default function Dashboard() {
   const [preview, setPreview] = useState<string | null>(null);
 
   const [showModal, setShowModal] = useState(false);
+  const [showContextModal, setShowContextModal] = useState(false);
+
   const [activePost, setActivePost] = useState<any>(null);
   const [activePostIndex, setActivePostIndex] = useState<number | null>(null);
 
   const [newText, setNewText] = useState("");
   const [newLink, setNewLink] = useState("");
 
-  const [ogData, setOgData] = useState<any>(null);
-  const [ogLoading, setOgLoading] = useState(false);
-
-  const [showContextModal, setShowContextModal] = useState(false);
   const [contextDisclosures, setContextDisclosures] = useState<string[]>([]);
   const [contextNotes, setContextNotes] = useState("");
+
+  const [ogData, setOgData] = useState<any>(null);
+  const [ogLoading, setOgLoading] = useState(false);
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (user) => {
@@ -47,31 +48,29 @@ export default function Dashboard() {
     return () => unsub();
   }, []);
 
-  const score = calculateScore(profile || {});
+  // ✅ SAFE SCORE
+  const score =
+    profile &&
+    calculateScore({
+      ...profile,
+      contextDisclosures,
+    });
 
-  // ================= COPY / SHARE =================
+  // ================= SHARE =================
   const handleCopyLink = async () => {
-    try {
-      const url = `${window.location.origin}/profile/${auth.currentUser?.uid}`;
-      await navigator.clipboard.writeText(url);
-      setFeedback("Link copied");
-    } catch {
-      setFeedback("Copy failed");
-    }
+    const url = `${window.location.origin}/profile/${auth.currentUser?.uid}`;
+    await navigator.clipboard.writeText(url);
+    setFeedback("Link copied");
   };
 
   const handleShare = async () => {
-    try {
-      const url = `${window.location.origin}/profile/${auth.currentUser?.uid}`;
+    const url = `${window.location.origin}/profile/${auth.currentUser?.uid}`;
 
-      if (navigator.share) {
-        await navigator.share({ title: "My Featrrr Profile", url });
-      } else {
-        await navigator.clipboard.writeText(url);
-        setFeedback("Link copied");
-      }
-    } catch {
-      setFeedback("Share failed");
+    if (navigator.share) {
+      await navigator.share({ title: "My Featrrr Profile", url });
+    } else {
+      await navigator.clipboard.writeText(url);
+      setFeedback("Link copied");
     }
   };
 
@@ -90,6 +89,32 @@ export default function Dashboard() {
     const snap = await getDoc(doc(db, "valid_profiles", user.uid));
     setProfile(snap.data());
     setPreview(url);
+  };
+
+  // ================= CORE DISCLOSURES =================
+  const disclosureOptions = [
+    { key: "performanceDrugs", label: "Uses performance enhancement drugs" },
+    { key: "cosmeticSurgery", label: "Cosmetic surgery" },
+    { key: "notOriginalContent", label: "Not original content" },
+    { key: "dueDiligence", label: "Due diligence on sponsored content" },
+    { key: "sourcesCited", label: "Sources cited" },
+    { key: "notOwnedResults", label: "Not all owned results" },
+    { key: "notAccredited", label: "Not accredited" },
+  ];
+
+  const saveContext = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const payload = {
+      contextDisclosures,
+      contextNotes,
+      contextUpdatedAt: new Date(),
+    };
+
+    await updateDoc(doc(db, "valid_profiles", user.uid), payload);
+    setProfile((prev: any) => ({ ...prev, ...payload }));
+    setShowContextModal(false);
   };
 
   // ================= OG FETCH =================
@@ -122,11 +147,9 @@ export default function Dashboard() {
     }
   }, [newLink]);
 
-  // ================= POSTS =================
+  // ================= ADD =================
   const handleAddPost = async () => {
     if (!newText || !newLink) return;
-
-    const now = new Date();
 
     const newPost = {
       text: newText,
@@ -134,8 +157,8 @@ export default function Dashboard() {
       previewImage: ogData?.image || "",
       title: ogData?.title || "",
       description: ogData?.description || "",
-      createdAt: now,
-      updatedAt: now,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
     const updated = [...(profile.postDisclosures || []), newPost];
@@ -155,6 +178,7 @@ export default function Dashboard() {
     setShowModal(false);
   };
 
+  // ================= EDIT =================
   const handleEditPost = async () => {
     if (activePostIndex === null) return;
 
@@ -165,8 +189,6 @@ export default function Dashboard() {
       text: newText,
       link: newLink,
       previewImage: ogData?.image || activePost.previewImage,
-      title: ogData?.title || activePost.title,
-      description: ogData?.description || activePost.description,
       updatedAt: new Date(),
     };
 
@@ -182,6 +204,7 @@ export default function Dashboard() {
     setActivePost(null);
   };
 
+  // ================= DELETE =================
   const handleDeletePost = async () => {
     if (activePostIndex === null) return;
 
@@ -200,33 +223,6 @@ export default function Dashboard() {
     setActivePost(null);
   };
 
-  // ================= CORE DISCLOSURES =================
-  const disclosureOptions = [
-    { key: "performanceDrugs", label: "Uses performance enhancement drugs" },
-    { key: "cosmeticSurgery", label: "Cosmetic surgery" },
-    { key: "notOriginalContent", label: "Not original content" },
-    { key: "dueDiligence", label: "Due diligence on sponsored content" },
-    { key: "sourcesCited", label: "Sources cited" },
-    { key: "notOwnedResults", label: "Not all owned results" },
-    { key: "notAccredited", label: "Not accredited" },
-  ];
-
-  const saveContext = async () => {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const payload = {
-      contextDisclosures,
-      contextNotes,
-      contextUpdatedAt: new Date(),
-    };
-
-    await updateDoc(doc(db, "valid_profiles", user.uid), payload);
-
-    setProfile((prev: any) => ({ ...prev, ...payload }));
-    setShowContextModal(false);
-  };
-
   if (loading || !profile) {
     return <div className="h-screen flex items-center justify-center">Loading...</div>;
   }
@@ -241,54 +237,135 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white px-4 pt-4 pb-10">
-      <div className="w-full max-w-md mx-auto space-y-5">
+    <div className="min-h-screen bg-black text-white flex justify-center px-4 py-6">
+      <div className="w-full max-w-md space-y-6">
 
-        <div className="flex justify-center">
-          <CreatorCard creator={creatorData} />
-        </div>
+        {/* CARD */}
+        <CreatorCard creator={creatorData} />
 
         {/* ACTIONS */}
-        <div className="bg-[#111] p-4 rounded-xl space-y-3">
-          <label className="block cursor-pointer bg-gray-800 p-3 rounded text-sm">
-            Upload Photo +3 pts
+        <div className="space-y-2">
+          <label className="block bg-gray-800 p-3 rounded text-sm cursor-pointer">
+            Upload Photo <span className="text-green-400">+3 pts</span>
             <input type="file" hidden onChange={(e) => e.target.files && handleUpload(e.target.files[0])} />
           </label>
 
-          <button onClick={handleShare} className="w-full bg-purple-500 p-3 rounded text-sm">
+          <button onClick={handleShare} className="w-full bg-purple-500 p-2 rounded text-sm">
             Share Profile
           </button>
 
-          <button onClick={handleCopyLink} className="w-full bg-gray-700 p-3 rounded text-sm">
+          <button onClick={handleCopyLink} className="w-full bg-gray-700 p-2 rounded text-sm">
             Copy Link
           </button>
 
-          <button onClick={() => setShowContextModal(true)} className="w-full bg-gray-800 p-3 rounded text-sm">
-            Core Disclosure +2 pts
+          <button onClick={() => setShowContextModal(true)} className="w-full bg-gray-800 p-2 rounded text-sm">
+            Core Disclosure <span className="text-green-400">+2 pts</span>
           </button>
         </div>
 
         {/* GRID */}
         <div className="grid grid-cols-3 gap-2">
-          <div onClick={() => setShowModal(true)} className="aspect-square flex flex-col items-center justify-center border border-gray-700 rounded cursor-pointer">
-            <span className="text-2xl">➕</span>
-            <span className="text-green-400 text-xs mt-1">+1 pt</span>
+
+          <div
+            onClick={() => setShowModal(true)}
+            className="aspect-square flex flex-col items-center justify-center border border-gray-700 rounded cursor-pointer"
+          >
+            <span>➕</span>
+            <span className="text-green-400 text-xs">+1</span>
           </div>
 
           {(profile.postDisclosures || []).map((post: any, i: number) => (
-            <div key={i} onClick={() => {
-              setActivePost(post);
-              setActivePostIndex(i);
-              setNewText(post.text);
-              setNewLink(post.link);
-              setOgData(post);
-            }} className="aspect-square rounded overflow-hidden cursor-pointer">
-              <img src={post.previewImage || `https://image.thum.io/get/${post.link}`} className="w-full h-full object-cover" />
+            <div
+              key={i}
+              onClick={() => {
+                setActivePost(post);
+                setActivePostIndex(i);
+                setNewText(post.text);
+                setNewLink(post.link);
+                setOgData(post);
+              }}
+              className="aspect-square rounded overflow-hidden cursor-pointer"
+            >
+              <img
+                src={post.previewImage || `https://image.thum.io/get/${post.link}`}
+                className="w-full h-full object-cover"
+              />
             </div>
           ))}
         </div>
 
+        {/* ADD MODAL */}
+        {showModal && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
+            <div className="bg-[#111] p-4 rounded w-full max-w-sm space-y-3">
+
+              <textarea
+                placeholder="Disclosure..."
+                value={newText}
+                onChange={(e) => setNewText(e.target.value)}
+                className="w-full p-2 bg-black border border-gray-700 rounded"
+              />
+
+              <input
+                placeholder="Paste link (required)"
+                value={newLink}
+                onChange={(e) => setNewLink(e.target.value)}
+                className="w-full p-2 bg-black border border-gray-700 rounded"
+              />
+
+              <button
+                disabled={!newLink}
+                onClick={handleAddPost}
+                className={`w-full p-2 rounded ${
+                  newLink ? "bg-purple-500" : "bg-gray-700"
+                }`}
+              >
+                Post
+              </button>
+
+              <button onClick={() => setShowModal(false)} className="w-full bg-gray-700 p-2 rounded">
+                Cancel
+              </button>
+
+            </div>
+          </div>
+        )}
+
+        {/* CORE MODAL */}
+        {showContextModal && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
+            <div className="bg-[#111] p-4 rounded w-full max-w-sm space-y-2">
+
+              {disclosureOptions.map((item) => (
+                <button
+                  key={item.key}
+                  onClick={() =>
+                    setContextDisclosures((prev) =>
+                      prev.includes(item.key)
+                        ? prev.filter((t) => t !== item.key)
+                        : [...prev, item.key]
+                    )
+                  }
+                  className="p-2 border border-gray-700 rounded text-left text-sm"
+                >
+                  {item.label}
+                </button>
+              ))}
+
+              <button onClick={saveContext} className="w-full bg-purple-500 p-2 rounded">
+                Save
+              </button>
+
+              <button onClick={() => setShowContextModal(false)} className="w-full bg-gray-700 p-2 rounded">
+                Cancel
+              </button>
+
+            </div>
+          </div>
+        )}
+
         {feedback && <p className="text-green-400 text-center text-sm">{feedback}</p>}
+
       </div>
     </div>
   );
