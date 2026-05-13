@@ -12,9 +12,9 @@ export const dynamic = "force-dynamic";
 export default function Dashboard() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [feedback, setFeedback] = useState("");
 
   const [preview, setPreview] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState("");
 
   const [showModal, setShowModal] = useState(false);
   const [activePost, setActivePost] = useState<any>(null);
@@ -49,21 +49,29 @@ export default function Dashboard() {
 
   const score = calculateScore(profile || {});
 
-  // ================= SHARE =================
+  // ================= COPY / SHARE =================
   const handleCopyLink = async () => {
-    const url = `${window.location.origin}/profile/${auth.currentUser?.uid}`;
-    await navigator.clipboard.writeText(url);
-    setFeedback("Link copied");
+    try {
+      const url = `${window.location.origin}/profile/${auth.currentUser?.uid}`;
+      await navigator.clipboard.writeText(url);
+      setFeedback("Link copied");
+    } catch {
+      setFeedback("Copy failed");
+    }
   };
 
   const handleShare = async () => {
-    const url = `${window.location.origin}/profile/${auth.currentUser?.uid}`;
+    try {
+      const url = `${window.location.origin}/profile/${auth.currentUser?.uid}`;
 
-    if (navigator.share) {
-      await navigator.share({ title: "My Featrrr Profile", url });
-    } else {
-      await navigator.clipboard.writeText(url);
-      setFeedback("Link copied");
+      if (navigator.share) {
+        await navigator.share({ title: "My Featrrr Profile", url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setFeedback("Link copied");
+      }
+    } catch {
+      setFeedback("Share failed");
     }
   };
 
@@ -114,7 +122,7 @@ export default function Dashboard() {
     }
   }, [newLink]);
 
-  // ================= ADD POST =================
+  // ================= POSTS =================
   const handleAddPost = async () => {
     if (!newText || !newLink) return;
 
@@ -147,7 +155,6 @@ export default function Dashboard() {
     setShowModal(false);
   };
 
-  // ================= EDIT =================
   const handleEditPost = async () => {
     if (activePostIndex === null) return;
 
@@ -175,7 +182,6 @@ export default function Dashboard() {
     setActivePost(null);
   };
 
-  // ================= DELETE =================
   const handleDeletePost = async () => {
     if (activePostIndex === null) return;
 
@@ -194,7 +200,17 @@ export default function Dashboard() {
     setActivePost(null);
   };
 
-  // ================= CORE SAVE =================
+  // ================= CORE DISCLOSURES =================
+  const disclosureOptions = [
+    { key: "performanceDrugs", label: "Uses performance enhancement drugs" },
+    { key: "cosmeticSurgery", label: "Cosmetic surgery" },
+    { key: "notOriginalContent", label: "Not original content" },
+    { key: "dueDiligence", label: "Due diligence on sponsored content" },
+    { key: "sourcesCited", label: "Sources cited" },
+    { key: "notOwnedResults", label: "Not all owned results" },
+    { key: "notAccredited", label: "Not accredited" },
+  ];
+
   const saveContext = async () => {
     const user = auth.currentUser;
     if (!user) return;
@@ -228,23 +244,15 @@ export default function Dashboard() {
     <div className="min-h-screen bg-black text-white px-4 pt-4 pb-10">
       <div className="w-full max-w-md mx-auto space-y-5">
 
-        {/* CARD */}
         <div className="flex justify-center">
           <CreatorCard creator={creatorData} />
         </div>
 
         {/* ACTIONS */}
         <div className="bg-[#111] p-4 rounded-xl space-y-3">
-
           <label className="block cursor-pointer bg-gray-800 p-3 rounded text-sm">
-            Upload Photo <span className="text-green-400">+3 pts</span>
-            <input
-              type="file"
-              hidden
-              onChange={(e) =>
-                e.target.files && handleUpload(e.target.files[0])
-              }
-            />
+            Upload Photo +3 pts
+            <input type="file" hidden onChange={(e) => e.target.files && handleUpload(e.target.files[0])} />
           </label>
 
           <button onClick={handleShare} className="w-full bg-purple-500 p-3 rounded text-sm">
@@ -255,47 +263,32 @@ export default function Dashboard() {
             Copy Link
           </button>
 
-          <button
-            onClick={() => setShowContextModal(true)}
-            className="w-full bg-gray-800 p-3 rounded text-sm"
-          >
-            Core Disclosure <span className="text-green-400">+2 pts</span>
+          <button onClick={() => setShowContextModal(true)} className="w-full bg-gray-800 p-3 rounded text-sm">
+            Core Disclosure +2 pts
           </button>
-
         </div>
 
         {/* GRID */}
         <div className="grid grid-cols-3 gap-2">
-
-          <div
-            onClick={() => setShowModal(true)}
-            className="aspect-square flex flex-col items-center justify-center border border-gray-700 rounded cursor-pointer"
-          >
+          <div onClick={() => setShowModal(true)} className="aspect-square flex flex-col items-center justify-center border border-gray-700 rounded cursor-pointer">
             <span className="text-2xl">➕</span>
             <span className="text-green-400 text-xs mt-1">+1 pt</span>
           </div>
 
           {(profile.postDisclosures || []).map((post: any, i: number) => (
-            <div
-              key={i}
-              onClick={() => {
-                setActivePost(post);
-                setActivePostIndex(i);
-                setNewText(post.text);
-                setNewLink(post.link);
-                setOgData(post);
-              }}
-              className="aspect-square rounded overflow-hidden cursor-pointer"
-            >
-              <img
-                src={post.previewImage || `https://image.thum.io/get/${post.link}`}
-                className="w-full h-full object-cover"
-              />
+            <div key={i} onClick={() => {
+              setActivePost(post);
+              setActivePostIndex(i);
+              setNewText(post.text);
+              setNewLink(post.link);
+              setOgData(post);
+            }} className="aspect-square rounded overflow-hidden cursor-pointer">
+              <img src={post.previewImage || `https://image.thum.io/get/${post.link}`} className="w-full h-full object-cover" />
             </div>
           ))}
-
         </div>
 
+        {feedback && <p className="text-green-400 text-center text-sm">{feedback}</p>}
       </div>
     </div>
   );
