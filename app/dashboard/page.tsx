@@ -166,46 +166,47 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex justify-center px-4 py-10">
-      <div className="w-full max-w-5xl space-y-10">
+  <div className="min-h-screen bg-black text-white px-4 pt-6 pb-10">
+    <div className="w-full max-w-md mx-auto space-y-6">
 
-        {/* CARD */}
-        <div className="flex justify-center">
-          <CreatorCard creator={creatorData} />
+      {/* CARD (NOW COMPACT + TOP-ALIGNED) */}
+      <div className="flex justify-center">
+        <CreatorCard creator={creatorData} />
+      </div>
+
+      {/* GRID (NOW CLOSER + NATURAL FLOW) */}
+      <div className="grid grid-cols-3 gap-2">
+
+        {/* ADD */}
+        <div
+          onClick={() => setShowModal(true)}
+          className="aspect-square flex flex-col items-center justify-center border border-gray-700 rounded cursor-pointer"
+        >
+          <span className="text-2xl">➕</span>
+          <span className="text-green-400 text-xs mt-1">+1 pt</span>
         </div>
 
-        {/* GRID */}
-        <div className="grid grid-cols-3 gap-2">
-
-          {/* ADD */}
+        {/* POSTS */}
+        {(profile.postDisclosures || []).map((post: any, i: number) => (
           <div
-            onClick={() => setShowModal(true)}
-            className="aspect-square flex flex-col items-center justify-center border border-gray-700 rounded cursor-pointer"
+            key={i}
+            onClick={() => {
+              setActivePost(post);
+              setActivePostIndex(i);
+              setNewText(post.text);
+              setNewLink(post.link);
+              setOgData(post);
+            }}
+            className="aspect-square rounded overflow-hidden cursor-pointer"
           >
-            <span className="text-3xl">➕</span>
-            <span className="text-green-400 text-xs mt-1">+1 pt</span>
+            <img
+              src={post.previewImage || `https://image.thum.io/get/${post.link}`}
+              className="w-full h-full object-cover"
+            />
           </div>
+        ))}
 
-          {/* POSTS */}
-          {(profile.postDisclosures || []).map((post: any, i: number) => (
-            <div
-              key={i}
-              onClick={() => {
-                setActivePost(post);
-                setActivePostIndex(i);
-                setNewText(post.text);
-                setNewLink(post.link);
-                setOgData(post);
-              }}
-              className="aspect-square rounded overflow-hidden cursor-pointer"
-            >
-              <img
-                src={post.previewImage || `https://image.thum.io/get/${post.link}`}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          ))}
-        </div>
+      </div>
 
         {/* ADD MODAL */}
         {showModal && (
