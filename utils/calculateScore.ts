@@ -1,7 +1,7 @@
 export function calculateScore(profile: any) {
   const isPaid = profile?.subscriptionStatus === "active";
 
-  // ✅ BASELINE (your correct logic)
+  // ✅ BASELINE
   let score = isPaid ? 75 : 60;
 
   const now = Date.now();
@@ -35,13 +35,13 @@ export function calculateScore(profile: any) {
   if (socials.youtube) score += 3;
 
   // =========================
-  // 🧾 CORE DISCLOSURES (+2)
-  // ✅ FIXED (string array)
+  // 🧾 CORE DISCLOSURES (+2 each, capped)
+  // ✅ FIXED FOR NEW STRUCTURE
   // =========================
   const context = profile?.contextDisclosures || [];
 
-  if (Array.isArray(context) && context.length > 0) {
-    score += 2;
+  if (Array.isArray(context)) {
+    score += Math.min(context.length * 2, 20); // max +20
   }
 
   // =========================
@@ -49,7 +49,7 @@ export function calculateScore(profile: any) {
   // =========================
   const posts = profile?.postDisclosures || [];
 
-  if (posts.length > 0) {
+  if (Array.isArray(posts)) {
     score += Math.min(posts.length, 10);
   }
 
@@ -102,4 +102,4 @@ export function calculateScore(profile: any) {
   score = Math.max(score, isPaid ? 65 : 60);
 
   return Math.round(score);
-} 
+}
