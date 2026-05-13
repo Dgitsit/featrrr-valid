@@ -14,6 +14,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   const [preview, setPreview] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState("");
 
   const [showModal, setShowModal] = useState(false);
   const [activePost, setActivePost] = useState<any>(null);
@@ -25,6 +26,10 @@ export default function Dashboard() {
   const [ogData, setOgData] = useState<any>(null);
   const [ogLoading, setOgLoading] = useState(false);
 
+  const [showContextModal, setShowContextModal] = useState(false);
+  const [contextDisclosures, setContextDisclosures] = useState<string[]>([]);
+  const [contextNotes, setContextNotes] = useState("");
+
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (user) => {
       if (!user) return (window.location.href = "/login");
@@ -34,6 +39,8 @@ export default function Dashboard() {
       if (!data) return;
 
       setProfile(data);
+      setContextDisclosures(data.contextDisclosures || []);
+      setContextNotes(data.contextNotes || "");
       setLoading(false);
     });
 
@@ -41,6 +48,41 @@ export default function Dashboard() {
   }, []);
 
   const score = calculateScore(profile || {});
+
+  // ================= SHARE =================
+  const handleCopyLink = async () => {
+    const url = `${window.location.origin}/profile/${auth.currentUser?.uid}`;
+    await navigator.clipboard.writeText(url);
+    setFeedback("Link copied");
+  };
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/profile/${auth.currentUser?.uid}`;
+
+    if (navigator.share) {
+      await navigator.share({ title: "My Featrrr Profile", url });
+    } else {
+      await navigator.clipboard.writeText(url);
+      setFeedback("Link copied");
+    }
+  };
+
+  // ================= UPLOAD =================
+  const handleUpload = async (file: File) => {
+    const user = auth.currentUser;
+    if (!file || !user) return;
+
+    const url = await uploadProfileImage(file, user.uid);
+
+    await fetch("/api/update-profile-photo", {
+      method: "POST",
+      body: JSON.stringify({ userId: user.uid, photoURL: url }),
+    });
+
+    const snap = await getDoc(doc(db, "valid_profiles", user.uid));
+    setProfile(snap.data());
+    setPreview(url);
+  };
 
   // ================= OG FETCH =================
   const fetchOG = async (url: string) => {
@@ -152,6 +194,23 @@ export default function Dashboard() {
     setActivePost(null);
   };
 
+  // ================= CORE SAVE =================
+  const saveContext = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const payload = {
+      contextDisclosures,
+      contextNotes,
+      contextUpdatedAt: new Date(),
+    };
+
+    await updateDoc(doc(db, "valid_profiles", user.uid), payload);
+
+    setProfile((prev: any) => ({ ...prev, ...payload }));
+    setShowContextModal(false);
+  };
+
   if (loading || !profile) {
     return <div className="h-screen flex items-center justify-center">Loading...</div>;
   }
@@ -166,27 +225,56 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex justify-center px-4 py-10">
-      <div className="w-full max-w-5xl space-y-10">
+    <div className="min-h-screen bg-black text-white px-4 pt-4 pb-10">
+      <div className="w-full max-w-md mx-auto space-y-5">
 
         {/* CARD */}
         <div className="flex justify-center">
           <CreatorCard creator={creatorData} />
         </div>
 
+        {/* ACTIONS */}
+        <div className="bg-[#111] p-4 rounded-xl space-y-3">
+
+          <label className="block cursor-pointer bg-gray-800 p-3 rounded text-sm">
+            Upload Photo <span className="text-green-400">+3 pts</span>
+            <input
+              type="file"
+              hidden
+              onChange={(e) =>
+                e.target.files && handleUpload(e.target.files[0])
+              }
+            />
+          </label>
+
+          <button onClick={handleShare} className="w-full bg-purple-500 p-3 rounded text-sm">
+            Share Profile
+          </button>
+
+          <button onClick={handleCopyLink} className="w-full bg-gray-700 p-3 rounded text-sm">
+            Copy Link
+          </button>
+
+          <button
+            onClick={() => setShowContextModal(true)}
+            className="w-full bg-gray-800 p-3 rounded text-sm"
+          >
+            Core Disclosure <span className="text-green-400">+2 pts</span>
+          </button>
+
+        </div>
+
         {/* GRID */}
         <div className="grid grid-cols-3 gap-2">
 
-          {/* ADD */}
           <div
             onClick={() => setShowModal(true)}
             className="aspect-square flex flex-col items-center justify-center border border-gray-700 rounded cursor-pointer"
           >
-            <span className="text-3xl">➕</span>
+            <span className="text-2xl">➕</span>
             <span className="text-green-400 text-xs mt-1">+1 pt</span>
           </div>
 
-          {/* POSTS */}
           {(profile.postDisclosures || []).map((post: any, i: number) => (
             <div
               key={i}
@@ -205,107 +293,8 @@ export default function Dashboard() {
               />
             </div>
           ))}
+
         </div>
-
-        {/* ADD MODAL */}
-        {showModal && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center">
-            <div className="bg-[#0b0b0f] p-5 rounded-xl w-full max-w-md space-y-4">
-
-              <textarea
-                placeholder="Disclosure..."
-                value={newText}
-                onChange={(e) => setNewText(e.target.value)}
-                className="w-full p-3 bg-black border border-gray-800 rounded"
-              />
-
-              <input
-                placeholder="Paste link..."
-                value={newLink}
-                onChange={(e) => setNewLink(e.target.value)}
-                className="w-full p-3 bg-black border border-gray-800 rounded"
-              />
-
-              {/* OG PREVIEW */}
-              {ogLoading && <p className="text-xs text-gray-500">Loading preview...</p>}
-
-              {ogData && (
-                <div className="bg-[#111] rounded-lg overflow-hidden border border-gray-800">
-                  {ogData.image && (
-                    <img src={ogData.image} className="w-full h-32 object-cover" />
-                  )}
-                  <div className="p-3">
-                    <p className="text-sm font-semibold">{ogData.title}</p>
-                    <p className="text-xs text-gray-400 mt-1 line-clamp-2">
-                      {ogData.description}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <button
-                disabled={!newLink}
-                onClick={handleAddPost}
-                className={`w-full p-3 rounded ${
-                  newLink ? "bg-purple-500" : "bg-gray-700"
-                }`}
-              >
-                Post (+1 pt)
-              </button>
-
-              <button onClick={() => setShowModal(false)} className="w-full bg-gray-700 p-2 rounded">
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* EDIT MODAL */}
-        {activePost && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center">
-            <div className="bg-[#0b0b0f] p-5 rounded-xl w-full max-w-md space-y-4">
-
-              <textarea
-                value={newText}
-                onChange={(e) => setNewText(e.target.value)}
-                className="w-full p-3 bg-black border border-gray-800 rounded"
-              />
-
-              <input
-                value={newLink}
-                onChange={(e) => setNewLink(e.target.value)}
-                className="w-full p-3 bg-black border border-gray-800 rounded"
-              />
-
-              {/* OG PREVIEW */}
-              {ogData && (
-                <div className="bg-[#111] rounded-lg overflow-hidden border border-gray-800">
-                  {ogData.image && (
-                    <img src={ogData.image} className="w-full h-32 object-cover" />
-                  )}
-                  <div className="p-3">
-                    <p className="text-sm font-semibold">{ogData.title}</p>
-                    <p className="text-xs text-gray-400 mt-1 line-clamp-2">
-                      {ogData.description}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <button onClick={handleEditPost} className="w-full bg-purple-500 p-3 rounded">
-                Save Changes
-              </button>
-
-              <button onClick={handleDeletePost} className="w-full bg-red-500 p-3 rounded">
-                Delete
-              </button>
-
-              <button onClick={() => setActivePost(null)} className="w-full bg-gray-700 p-2 rounded">
-                Close
-              </button>
-            </div>
-          </div>
-        )}
 
       </div>
     </div>
