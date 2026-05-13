@@ -239,9 +239,10 @@ export default function Dashboard() {
               resetPostModal();
               setShowPostModal(true);
             }}
-            className="aspect-square flex items-center justify-center border border-gray-700 rounded"
+            className="aspect-square flex flex-col items-center justify-center border border-gray-700 rounded"
           >
-            ➕
+            <span className="text-2xl">➕</span>
+            <span className="text-xs text-green-400 mt-1">+1</span>
           </div>
 
           {(profile.postDisclosures || []).map((post: any, i: number) => (
@@ -255,7 +256,10 @@ export default function Dashboard() {
               }}
               className="aspect-square overflow-hidden rounded"
             >
-              <img src={post.previewImage || `https://image.thum.io/get/${post.link}`} className="w-full h-full object-cover" />
+              <img
+                src={post.previewImage || `https://image.thum.io/get/${post.link}`}
+                className="w-full h-full object-cover"
+              />
             </div>
           ))}
         </div>
@@ -265,16 +269,34 @@ export default function Dashboard() {
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
             <div className="bg-[#111] p-4 rounded w-full max-w-sm space-y-3">
 
-              <textarea value={newText} onChange={(e) => setNewText(e.target.value)} className="w-full p-2 bg-black border border-gray-700 rounded" />
+              <textarea
+                placeholder="disclosure"
+                value={newText}
+                onChange={(e) => setNewText(e.target.value)}
+                className="w-full p-2 bg-black border border-gray-700 rounded"
+              />
 
-              <input value={newLink} onChange={(e) => setNewLink(e.target.value)} className="w-full p-2 bg-black border border-gray-700 rounded" />
+              <input
+                placeholder="mandatory link"
+                value={newLink}
+                onChange={(e) => setNewLink(e.target.value)}
+                className="w-full p-2 bg-black border border-gray-700 rounded"
+              />
 
               {ogLoading && <p className="text-xs">Loading preview...</p>}
 
-              {ogData && <img src={ogData.image} className="w-full h-24 object-cover rounded" />}
+              {ogData && (
+                <img src={ogData.image} className="w-full h-24 object-cover rounded" />
+              )}
 
-              <button disabled={!newLink} onClick={handleSavePost} className={`w-full p-2 rounded ${newLink ? "bg-purple-500" : "bg-gray-700"}`}>
-                Save
+              <button
+                disabled={!newText || !newLink}
+                onClick={handleSavePost}
+                className={`w-full p-2 rounded ${
+                  newText && newLink ? "bg-purple-500" : "bg-gray-700"
+                }`}
+              >
+                Save (+1 pt)
               </button>
 
               {activePostIndex !== null && (
