@@ -10,240 +10,280 @@ import { uploadProfileImage } from "@/lib/upload";
 export const dynamic = "force-dynamic";
 
 export default function Dashboard() {
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [feedback, setFeedback] = useState("");
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [feedback, setFeedback] = useState("");
 
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
 
-  const [showModal, setShowModal] = useState(false);
-  const [showContextModal, setShowContextModal] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [showContextModal, setShowContextModal] = useState(false);
 
-  const [activePost, setActivePost] = useState<any>(null);
-  const [activePostIndex, setActivePostIndex] = useState<number | null>(null);
+  const [activePost, setActivePost] = useState<any>(null);
+  const [activePostIndex, setActivePostIndex] = useState<number | null>(null);
 
-  const [newText, setNewText] = useState("");
-  const [newLink, setNewLink] = useState("");
+  const [newText, setNewText] = useState("");
+  const [newLink, setNewLink] = useState("");
 
-  const [ogData, setOgData] = useState<any>(null);
-  const [ogLoading, setOgLoading] = useState(false);
+  const [ogData, setOgData] = useState<any>(null);
+  const [ogLoading, setOgLoading] = useState(false);
 
-  // ✅ NEW STRUCTURE
-  const [contextDisclosures, setContextDisclosures] = useState<
-    { key: string; label: string; note?: string }[]
-  >([]);
+  const [contextDisclosures, setContextDisclosures] = useState<any[]>([]);
 
-  const disclosureOptions = [
-    { key: "performanceDrugs", label: "Uses performance enhancement drugs" },
-    { key: "cosmeticSurgery", label: "Cosmetic surgery" },
-    { key: "notOriginalContent", label: "Not original content" },
-    { key: "dueDiligence", label: "Due diligence on sponsored content" },
-    { key: "sourcesCited", label: "Sources cited" },
-    { key: "notOwnedResults", label: "Not all owned results" },
-    { key: "notAccredited", label: "Not accredited" },
-  ];
+  const disclosureOptions = [
+    { key: "performanceDrugs", label: "Uses performance enhancement drugs" },
+    { key: "cosmeticSurgery", label: "Cosmetic surgery" },
+    { key: "notOriginalContent", label: "Not original content" },
+    { key: "dueDiligence", label: "Due diligence on sponsored content" },
+    { key: "sourcesCited", label: "Sources cited" },
+    { key: "notOwnedResults", label: "Not all owned results" },
+    { key: "notAccredited", label: "Not accredited" },
+  ];
 
-  useEffect(() => {
-    const unsub = auth.onAuthStateChanged(async (user) => {
-      if (!user) return (window.location.href = "/login");
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged(async (user) => {
+      if (!user) return (window.location.href = "/login");
 
-      const snap = await getDoc(doc(db, "valid_profiles", user.uid));
-      const data = snap.data();
-      if (!data) return;
+      const snap = await getDoc(doc(db, "valid_profiles", user.uid));
+      const data = snap.data();
+      if (!data) return;
 
-      setProfile(data);
+      setProfile(data);
+      setContextDisclosures(data.contextDisclosures || []);
+      setLoading(false);
+    });
 
-      setContextDisclosures(
-        Array.isArray(data.contextDisclosures)
-          ? data.contextDisclosures
-          : []
-      );
+    return () => unsub();
+  }, []);
 
-      setLoading(false);
-    });
+  const score = calculateScore({
+    ...profile,
+    contextDisclosures,
+  });
 
-    return () => unsub();
-  }, []);
+  // ================= OG FETCH =================
+  const fetchOG = async (url: string) => {
+    if (!url) return;
 
-  const score = calculateScore({
-    ...profile,
-    contextDisclosures,
-  });
+    try {
+      setOgLoading(true);
+      const res = await fetch("/api/og", {
+        method: "POST",
+        body: JSON.stringify({ url }),
+      });
 
-  // ================= CORE ACTIONS =================
+      const data = await res.json();
+      setOgData(data);
+    } catch {
+      setOgData(null);
+    } finally {
+      setOgLoading(false);
+    }
+  };
 
-  const handleAddDisclosure = (item: any) => {
-    const exists = contextDisclosures.some((d) => d.key === item.key);
-    if (exists) return;
+  useEffect(() => {
+    if (newLink) {
+      const t = setTimeout(() => fetchOG(newLink), 500);
+      return () => clearTimeout(t);
+    } else {
+      setOgData(null);
+    }
+  }, [newLink]);
 
-    setContextDisclosures((prev) => [
-      ...prev,
-      { key: item.key, label: item.label, note: "" },
-    ]);
-  };
+  // ================= POST ACTIONS =================
+  const handleAddPost = async () => {
+    if (!newText || !newLink) return;
 
-  const handleEditDisclosureNote = (key: string, value: string) => {
-    setContextDisclosures((prev) =>
-      prev.map((d) => (d.key === key ? { ...d, note: value } : d))
-    );
-  };
+    const newPost = {
+      text: newText,
+      link: newLink,
+      previewImage: ogData?.image || "",
+      title: ogData?.title || "",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
 
-  const handleDeleteDisclosure = (key: string) => {
-    setContextDisclosures((prev) => prev.filter((d) => d.key !== key));
-  };
+    const updated = [...(profile.postDisclosures || []), newPost];
 
-  const saveContext = async () => {
-    const user = auth.currentUser;
-    if (!user) return;
+    await updateDoc(doc(db, "valid_profiles", auth.currentUser!.uid), {
+      postDisclosures: updated,
+    });
 
-    const payload = {
-      contextDisclosures,
-      contextUpdatedAt: new Date(),
-    };
+    setProfile((prev: any) => ({ ...prev, postDisclosures: updated }));
 
-    await updateDoc(doc(db, "valid_profiles", user.uid), payload);
+    setNewText("");
+    setNewLink("");
+    setOgData(null);
+    setShowModal(false);
+  };
 
-    setProfile((prev: any) => ({
-      ...prev,
-      ...payload,
-    }));
+  const handleEditPost = async () => {
+    if (activePostIndex === null) return;
 
-    setShowContextModal(false);
-  };
+    const updated = [...profile.postDisclosures];
 
-  // ================= SHARE =================
-  const handleCopyLink = async () => {
-    const url = `${window.location.origin}/profile/${auth.currentUser?.uid}`;
-    await navigator.clipboard.writeText(url);
-    setFeedback("Link copied");
-  };
+    updated[activePostIndex] = {
+      ...updated[activePostIndex],
+      text: newText,
+      link: newLink,
+      previewImage: ogData?.image || activePost.previewImage,
+      updatedAt: new Date(),
+    };
 
-  const handleShare = async () => {
-    const url = `${window.location.origin}/profile/${auth.currentUser?.uid}`;
+    await updateDoc(doc(db, "valid_profiles", auth.currentUser!.uid), {
+      postDisclosures: updated,
+    });
 
-    if (navigator.share) {
-      await navigator.share({ title: "My Profile", url });
-    } else {
-      await navigator.clipboard.writeText(url);
-      setFeedback("Link copied");
-    }
-  };
+    setProfile((prev: any) => ({ ...prev, postDisclosures: updated }));
+    setActivePost(null);
+  };
 
-  // ================= UPLOAD =================
-  const handleUpload = async (file: File) => {
-    const user = auth.currentUser;
-    if (!file || !user) return;
+  const handleDeletePost = async () => {
+    if (activePostIndex === null) return;
 
-    const url = await uploadProfileImage(file, user.uid);
+    const updated = [...profile.postDisclosures];
+    updated.splice(activePostIndex, 1);
 
-    await fetch("/api/update-profile-photo", {
-      method: "POST",
-      body: JSON.stringify({ userId: user.uid, photoURL: url }),
-    });
+    await updateDoc(doc(db, "valid_profiles", auth.currentUser!.uid), {
+      postDisclosures: updated,
+    });
 
-    setPreview(url);
-  };
+    setProfile((prev: any) => ({ ...prev, postDisclosures: updated }));
+    setActivePost(null);
+  };
 
-  if (loading || !profile) {
-    return <div className="h-screen flex items-center justify-center">Loading...</div>;
-  }
+  // ================= CORE =================
+  const handleAddDisclosure = (item: any) => {
+    if (contextDisclosures.some((d) => d.key === item.key)) return;
 
-  const creatorData = {
-    id: auth.currentUser?.uid || "",
-    displayName: profile.displayName || "",
-    score,
-    subscriptionStatus: profile.subscriptionStatus || "free",
-    profilePhoto: preview || profile.photoURL || "",
-    badgeNumber: profile.badgeNumber || "",
-  };
+    setContextDisclosures((prev) => [
+      ...prev,
+      { key: item.key, label: item.label, note: "" },
+    ]);
+  };
 
-  return (
-    <div className="min-h-screen bg-black text-white flex justify-center px-4 py-6">
-      <div className="w-full max-w-md space-y-6">
+  const handleDeleteDisclosure = (key: string) => {
+    setContextDisclosures((prev) => prev.filter((d) => d.key !== key));
+  };
 
-        <CreatorCard creator={creatorData} />
+  const saveContext = async () => {
+    await updateDoc(doc(db, "valid_profiles", auth.currentUser!.uid), {
+      contextDisclosures,
+      contextUpdatedAt: new Date(),
+    });
 
-        {/* ACTIONS */}
-        <div className="space-y-2">
-          <label className="block bg-gray-800 p-3 rounded text-sm cursor-pointer">
-            Upload Photo +3 pts
-            <input type="file" hidden onChange={(e) => e.target.files && handleUpload(e.target.files[0])} />
-          </label>
+    setProfile((prev: any) => ({ ...prev, contextDisclosures }));
+    setShowContextModal(false);
+  };
 
-          <button onClick={handleShare} className="w-full bg-purple-500 p-2 rounded text-sm">
-            Share Profile
-          </button>
+  // ================= UPLOAD =================
+  const handleUpload = async (file: File) => {
+    const url = await uploadProfileImage(file, auth.currentUser!.uid);
+    setPreview(url);
+  };
 
-          <button onClick={handleCopyLink} className="w-full bg-gray-700 p-2 rounded text-sm">
-            Copy Link
-          </button>
+  if (loading || !profile) {
+    return <div className="h-screen flex items-center justify-center">Loading...</div>;
+  }
 
-          <button onClick={() => setShowContextModal(true)} className="w-full bg-gray-800 p-2 rounded text-sm">
-            Core Disclosure +2 pts each
-          </button>
-        </div>
+  const creatorData = {
+    id: auth.currentUser?.uid,
+    displayName: profile.displayName,
+    score,
+    subscriptionStatus: profile.subscriptionStatus,
+    profilePhoto: preview || profile.photoURL,
+    badgeNumber: profile.badgeNumber,
+  };
 
-        {/* CORE MODAL */}
-        {showContextModal && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-            <div className="bg-[#111] p-4 rounded w-full max-w-sm space-y-4 max-h-[80vh] overflow-y-auto">
+  return (
+    <div className="min-h-screen bg-black text-white px-4 py-6">
+      <div className="max-w-md mx-auto space-y-6">
 
-              <p className="text-xs text-gray-400">Add Disclosure</p>
+        <CreatorCard creator={creatorData} />
 
-              {disclosureOptions.map((item) => {
-                const exists = contextDisclosures.some((d) => d.key === item.key);
+        {/* ACTIONS */}
+        <div className="space-y-2">
+          <label className="block bg-gray-800 p-3 rounded text-sm cursor-pointer">
+            Upload Photo (+3 pts)
+            <input hidden type="file" onChange={(e) => e.target.files && handleUpload(e.target.files[0])} />
+          </label>
 
-                return (
-                  <button
-                    key={item.key}
-                    disabled={exists}
-                    onClick={() => handleAddDisclosure(item)}
-                    className={`w-full p-2 text-left text-sm border rounded ${
-                      exists
-                        ? "border-gray-800 text-gray-600"
-                        : "border-gray-700 text-gray-300"
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
+          <button onClick={() => setShowContextModal(true)} className="w-full bg-gray-800 p-2 rounded text-sm">
+            Core Disclosure (+2 pts each)
+          </button>
+        </div>
 
-              <p className="text-xs text-gray-400">Your Disclosures</p>
+        {/* POST GRID (🔥 FIXED — THIS WAS MISSING) */}
+        <div className="grid grid-cols-3 gap-2">
+          <div
+            onClick={() => setShowModal(true)}
+            className="aspect-square flex flex-col items-center justify-center border border-gray-700 rounded"
+          >
+            ➕
+            <span className="text-xs text-green-400">+1</span>
+          </div>
 
-              {contextDisclosures.map((d) => (
-                <div key={d.key} className="border border-gray-800 rounded p-2 space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm">{d.label}</span>
-                    <button onClick={() => handleDeleteDisclosure(d.key)} className="text-red-400 text-xs">
-                      Remove
-                    </button>
-                  </div>
+          {(profile.postDisclosures || []).map((post: any, i: number) => (
+            <div
+              key={i}
+              onClick={() => {
+                setActivePost(post);
+                setActivePostIndex(i);
+                setNewText(post.text);
+                setNewLink(post.link);
+                setOgData(post);
+              }}
+              className="aspect-square rounded overflow-hidden"
+            >
+              <img
+                src={post.previewImage || `https://image.thum.io/get/${post.link}`}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ))}
+        </div>
 
-                  <textarea
-                    placeholder="Optional note..."
-                    value={d.note || ""}
-                    onChange={(e) => handleEditDisclosureNote(d.key, e.target.value)}
-                    className="w-full p-2 bg-black border border-gray-700 rounded text-xs"
-                  />
-                </div>
-              ))}
+        {/* ADD POST MODAL */}
+        {showModal && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
+            <div className="bg-[#111] p-4 rounded w-full max-w-sm space-y-3">
 
-              <button onClick={saveContext} className="w-full bg-purple-500 p-2 rounded">
-                Save
-              </button>
+              <textarea
+                placeholder="Disclosure..."
+                value={newText}
+                onChange={(e) => setNewText(e.target.value)}
+                className="w-full p-2 bg-black border border-gray-700 rounded"
+              />
 
-              <button onClick={() => setShowContextModal(false)} className="w-full bg-gray-700 p-2 rounded">
-                Cancel
-              </button>
+              <input
+                placeholder="Paste link (required)"
+                value={newLink}
+                onChange={(e) => setNewLink(e.target.value)}
+                className="w-full p-2 bg-black border border-gray-700 rounded"
+              />
 
-            </div>
-          </div>
-        )}
+              {ogLoading && <p className="text-xs">Loading preview...</p>}
 
-        {feedback && <p className="text-green-400 text-center text-sm">{feedback}</p>}
+              {ogData && (
+                <img src={ogData.image} className="w-full h-24 object-cover rounded" />
+              )}
 
-      </div>
-    </div>
-  );
+              <button
+                disabled={!newLink}
+                onClick={handleAddPost}
+                className={`w-full p-2 rounded ${newLink ? "bg-purple-500" : "bg-gray-700"}`}
+              >
+                Post
+              </button>
+
+              <button onClick={() => setShowModal(false)} className="w-full bg-gray-700 p-2 rounded">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
 }
