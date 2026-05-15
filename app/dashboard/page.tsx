@@ -81,10 +81,34 @@ export default function Dashboard() {
   };
 
   // ================= UPLOAD =================
-  const handleUpload = async (file: File) => {
-    const url = await uploadProfileImage(file, auth.currentUser!.uid);
-    setPreview(url);
-  };
+  const handleUpload = async (file: File) => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const url = await uploadProfileImage(file, user.uid);
+
+    const idToken = await user.getIdToken();
+    const res = await fetch("/api/update-profile-photo", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({ photoURL: url }),
+    });
+
+    if (res.status === 401) {
+      alert("Session expired. Please log in again.");
+      return;
+    }
+
+    if (!res.ok) {
+      console.error("Failed to save profile photo");
+      return;
+    }
+
+    setPreview(url);
+  };
 
   // ================= OG =================
   const fetchOG = async (url: string) => {
