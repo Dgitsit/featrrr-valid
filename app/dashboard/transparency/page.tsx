@@ -29,7 +29,9 @@ export default function TransparencyPage() {
 
   // 🔥 Submit disclosure
   const handleSubmit = async () => {
-    if (!userEmail) {
+    const user = auth.currentUser;
+
+    if (!user) {
       alert("You must be logged in to submit a disclosure");
       return;
     }
@@ -40,16 +42,26 @@ export default function TransparencyPage() {
     }
 
     try {
+      const idToken = await user.getIdToken();
+
       const res = await fetch("/api/disclosures", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
-          userId: userEmail,
           title,
           description,
           link,
           category,
         }),
       });
+
+      if (res.status === 401) {
+        alert("Session expired. Please log in again.");
+        return;
+      }
 
       if (res.ok) {
         alert("Disclosure submitted!");

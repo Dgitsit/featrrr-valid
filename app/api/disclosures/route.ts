@@ -1,16 +1,23 @@
 import { adminDb } from "@/lib/firebase-admin";
+import { verifyRequestAuth } from "@/lib/verifyAuth";
 
 export async function POST(req: Request) {
   try {
+    const auth = await verifyRequestAuth(req);
+
+    if (!auth) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+
     const body = await req.json();
+    const { title, description, category, link } = body;
 
-    const { userId, title, description, category, link } = body;
-
-    if (!userId || !title || !description) {
+    if (!title || !description) {
       return new Response("Missing required fields", { status: 400 });
     }
 
-    // 🔥 1. Prevent duplicate link submissions
+    const userId = auth.uid;
+
     if (link) {
       const existing = await adminDb
         .collection("disclosures")
@@ -23,7 +30,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // 🔥 2. Prevent spammy low-quality disclosures
     if (description.length < 15) {
       return new Response("Description too short", { status: 400 });
     }
@@ -38,7 +44,6 @@ export async function POST(req: Request) {
     });
 
     return new Response("Success", { status: 200 });
-
   } catch (err) {
     console.error(err);
     return new Response("Error creating disclosure", { status: 500 });
