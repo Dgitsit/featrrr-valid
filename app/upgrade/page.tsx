@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { auth } from "@/lib/firebase";
 import Button from "@/components/ui/Button";
 
 export default function UpgradePage() {
@@ -8,26 +9,41 @@ export default function UpgradePage() {
   const [loading, setLoading] = useState(false);
 
   const handleUpgrade = async () => {
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Please log in to upgrade");
+      return;
+    }
+
     try {
       setLoading(true);
 
-      // 🔥 CALL STRIPE API
-      const res = await fetch("/api/stripe/checkout", {
+      const idToken = await user.getIdToken();
+
+      const res = await fetch("/api/create-checkout-session", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
         body: JSON.stringify({ plan }),
       });
 
+      if (res.status === 401) {
+        alert("Session expired. Please log in again.");
+        return;
+      }
+
       const data = await res.json();
 
-      // 🔥 REDIRECT TO STRIPE
       if (data.url) {
         window.location.href = data.url;
       } else {
-        alert("Stripe not configured yet (test mode)");
+        alert(data.error || "Checkout failed");
       }
-
     } catch (err) {
       console.error(err);
+      alert("Something went wrong");
     } finally {
       setLoading(false);
     }
