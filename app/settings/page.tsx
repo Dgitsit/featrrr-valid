@@ -60,15 +60,19 @@ export default function SettingsPage() {
     try {
       setLoading(true);
 
+      const idToken = await user.getIdToken();
+
       const res = await fetch("/api/account/delete", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
         },
-        body: JSON.stringify({
-          userId: user.uid,
-        }),
       });
+
+      if (res.status === 401) {
+        alert("Session expired. Please log in again.");
+        return;
+      }
 
       const data = await res.json();
 
