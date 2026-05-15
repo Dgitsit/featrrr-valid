@@ -1,16 +1,21 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminDb } from "@/lib/firebase-admin";
+import { verifyRequestAuth } from "@/lib/verifyAuth";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
 export async function POST(req: Request) {
   try {
-    const { userId } = await req.json();
+    const auth = await verifyRequestAuth(req);
+
+    if (!auth) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const userDoc = await adminDb
       .collection("valid_profiles")
-      .doc(userId)
+      .doc(auth.uid)
       .get();
 
     const stripeCustomerId = userDoc.data()?.stripeCustomerId;
@@ -28,7 +33,6 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ url: session.url });
-
   } catch (err) {
     console.error("Portal error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
