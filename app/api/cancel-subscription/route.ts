@@ -1,22 +1,19 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminDb } from "@/lib/firebase-admin";
+import { verifyRequestAuth } from "@/lib/verifyAuth";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
 export async function POST(req: Request) {
   try {
-    const { userId } = await req.json();
+    const auth = await verifyRequestAuth(req);
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Missing userId" },
-        { status: 400 }
-      );
-    }
+    if (!auth) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    // 🔥 Get user from Firestore
-    const userRef = adminDb.collection("valid_profiles").doc(userId);
+    const userRef = adminDb.collection("valid_profiles").doc(auth.uid);
     const snap = await userRef.get();
 
     if (!snap.exists) {
