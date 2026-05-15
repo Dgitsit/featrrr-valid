@@ -43,17 +43,21 @@ export default function FinalStep() {
         subscriptionStatus: "pending",
       });
 
+      const idToken = await user.getIdToken();
+
       const res = await fetch("/api/create-checkout-session", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
         },
-        body: JSON.stringify({
-          plan,
-          userId: user.uid,
-          email: user.email,
-        }),
+        body: JSON.stringify({ plan }),
       });
+
+      if (res.status === 401) {
+        alert("Session expired. Please log in again.");
+        return;
+      }
 
       const data = await res.json();
 

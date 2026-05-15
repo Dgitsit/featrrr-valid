@@ -12,13 +12,21 @@ export default function PricingPage() {
       return;
     }
 
+    const idToken = await currentUser.getIdToken();
+
     const res = await fetch("/api/create-checkout-session", {
       method: "POST",
-      body: JSON.stringify({
-        userId: currentUser.uid,
-        email: currentUser.email,
-      }),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({ plan: "yearly" }),
     });
+
+    if (res.status === 401) {
+      alert("Session expired. Please log in again.");
+      return;
+    }
 
     const data = await res.json();
 

@@ -2,7 +2,7 @@ import { adminAuth } from "@/lib/firebase-admin";
 
 export async function verifyRequestAuth(
   req: Request
-): Promise<{ uid: string } | null> {
+): Promise<{ uid: string; email?: string } | null> {
   const header = req.headers.get("Authorization");
 
   if (!header?.startsWith("Bearer ")) {
@@ -16,7 +16,7 @@ export async function verifyRequestAuth(
 
   try {
     const decoded = await adminAuth.verifyIdToken(token);
-    return { uid: decoded.uid };
+    return { uid: decoded.uid, email: decoded.email };
   } catch {
     return null;
   }

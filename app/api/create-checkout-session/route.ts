@@ -1,87 +1,87 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { adminDb } from "@/lib/firebase-admin";
+import { verifyRequestAuth } from "@/lib/verifyAuth";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
 export async function POST(req: Request) {
-  try {
-    const body = await req.json();
+  try {
+    const auth = await verifyRequestAuth(req);
 
-    const { plan, userId, email } = body;
+    if (!auth) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    console.log("=== STRIPE CHECKOUT DEBUG START ===");
-    console.log("PLAN:", plan);
-    console.log("USER ID:", userId);
-    console.log("EMAIL:", email);
+    const body = await req.json();
+    const { plan } = body;
 
-    // ✅ Validation
-    if (!plan || !userId || !email) {
-      console.error("❌ Missing required fields");
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
+    if (!plan || (plan !== "monthly" && plan !== "yearly")) {
+      return NextResponse.json(
+        { error: "Missing or invalid plan" },
+        { status: 400 }
+      );
+    }
 
-    // ✅ Pick correct price
-    const priceId =
-      plan === "yearly"
-        ? process.env.STRIPE_YEARLY_PRICE_ID
-        : process.env.STRIPE_MONTHLY_PRICE_ID;
+    let email = auth.email;
+    if (!email) {
+      const profile = await adminDb
+        .collection("valid_profiles")
+        .doc(auth.uid)
+        .get();
+      email = profile.data()?.email;
+    }
 
-    if (!priceId) {
-      console.error("❌ Price ID not found in env");
-      return NextResponse.json(
-        { error: "Missing Stripe price ID" },
-        { status: 500 }
-      );
-    }
+    if (!email) {
+      return NextResponse.json(
+        { error: "Email required for checkout" },
+        { status: 400 }
+      );
+    }
 
-    console.log("PRICE ID:", priceId);
+    const priceId =
+      plan === "yearly"
+        ? process.env.STRIPE_YEARLY_PRICE_ID
+        : process.env.STRIPE_MONTHLY_PRICE_ID;
 
-    // ✅ Force correct base URL (don’t rely on env blindly)
-    const BASE_URL =
-      process.env.NEXT_PUBLIC_BASE_URL || "https://featrrrvalid.com";
+    if (!priceId) {
+      return NextResponse.json(
+        { error: "Missing Stripe price ID" },
+        { status: 500 }
+      );
+    }
 
-    console.log("BASE URL:", BASE_URL);
+    const BASE_URL =
+      process.env.NEXT_PUBLIC_BASE_URL || "https://featrrrvalid.com";
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      customer_email: email,
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer_email: email,
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      success_url: `${BASE_URL}/dashboard`,
+      cancel_url: `${BASE_URL}/upgrade`,
+      metadata: {
+        userId: auth.uid,
+        plan,
+        app: "featrrr-valid",
+      },
+    });
 
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
+    return NextResponse.json({ url: session.url });
+  } catch (err: unknown) {
+    console.error("Stripe checkout error:", err);
 
-      // ✅ YOUR UPDATED DOMAIN
-      success_url: `${BASE_URL}/dashboard`,
-      cancel_url: `${BASE_URL}/upgrade`,
-
-      // ✅ IMPORTANT (used later in webhook)
-      metadata: {
-        userId,
-        plan,
-        app: "featrrr-valid",
-      },
-    });
-
-    console.log("✅ SESSION CREATED:", session.id);
-    console.log("➡️ REDIRECT URL:", session.url);
-    console.log("=== STRIPE CHECKOUT DEBUG END ===");
-
-    return NextResponse.json({ url: session.url });
-
-  } catch (err: any) {
-    console.error("🚨 STRIPE ERROR FULL:", err);
-
-    return NextResponse.json(
-      {
-        error: err?.message || "Stripe session failed",
-      },
-      { status: 500 }
-    );
-  }
+    return NextResponse.json(
+      {
+        error:
+          err instanceof Error ? err.message : "Stripe session failed",
+      },
+      { status: 500 }
+    );
+  }
 }
