@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { auth } from "@/lib/firebase";
 import { generateVerificationCode } from "@/lib/generateCode";
-import { createOrUpdateUserProfile } from "@/lib/createUserProfile";
 
 type Platform = "instagram" | "tiktok" | "youtube";
 
@@ -76,24 +76,55 @@ export default function SocialsForm({ userId }: { userId: string }) {
 
   // 🔥 VERIFY + SCORE
   const handleVerify = async () => {
+    const user = auth.currentUser;
+    if (!user || user.uid !== userId) {
+      alert("Please log in to verify");
+      return;
+    }
+
+    if (!username.trim() || !code) {
+      alert("Generate a code and add it to your bio first");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const result = await createOrUpdateUserProfile(userId, {
-        [`socials.${platform}.verified`]: true,
+      const idToken = await user.getIdToken();
+
+      const res = await fetch("/api/verify-social", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          username: username.trim(),
+          code,
+          platform,
+        }),
       });
+
+      if (res.status === 401) {
+        alert("Session expired. Please log in again.");
+        return;
+      }
+
+      const data = await res.json();
+
+      if (!data.success) {
+        alert("Verification failed");
+        return;
+      }
 
       setVerified(true);
       setPending(false);
 
-      // ✅ FIXED SAFE ACCESS
-      if (result && result.scoreAdded > 0) {
-        alert(`+${result.scoreAdded} score`);
+      if (data.scoreAdded > 0) {
+        alert(`+${data.scoreAdded} score`);
       }
 
-      // 🔥 EVENT (optional future use)
       window.dispatchEvent(new Event("featrrr:verified"));
-
     } catch (err) {
       console.error(err);
       alert("Verification failed");

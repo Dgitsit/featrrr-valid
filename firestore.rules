@@ -1,0 +1,105 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Server / webhook / Admin SDK only
+    function protectedProfileFields() {
+      return [
+        'score',
+        'badgeNumber',
+        'status',
+        'stripeCustomerId',
+        'stripeSubscriptionId',
+        'plan',
+        'cancelAtPeriodEnd',
+        'uid',
+        'socials.instagram.verified',
+        'socials.tiktok.verified',
+        'socials.youtube.verified',
+      ];
+    }
+
+    function protectedProfileFieldsUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(protectedProfileFields());
+    }
+
+    // Client may set pending/inactive/free before paid subscription is active
+    function subscriptionStatusChangeAllowed() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['subscriptionStatus'])
+        || (
+          request.resource.data.subscriptionStatus in ['free', 'inactive', 'pending']
+          && !(resource.data.get('subscriptionStatus', 'free') in ['active', 'canceling'])
+        );
+    }
+
+    function platformVerifiedUnchanged(platform) {
+      let prevVerified = resource.data.get('socials', {}).get(platform, {}).get('verified', false);
+      let nextVerified = request.resource.data.get('socials', {}).get(platform, {}).get('verified', false);
+      return nextVerified == prevVerified;
+    }
+
+    function socialsVerifiedUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['socials'])
+        || (
+          platformVerifiedUnchanged('instagram')
+          && platformVerifiedUnchanged('tiktok')
+          && platformVerifiedUnchanged('youtube')
+        );
+    }
+
+    function profileCreateAllowed(userId) {
+      return isOwner(userId)
+        && request.resource.data.score == 60
+        && request.resource.data.subscriptionStatus == 'free'
+        && request.resource.data.get('socials', {}).get('instagram', {}).get('verified', false) == false
+        && request.resource.data.get('socials', {}).get('tiktok', {}).get('verified', false) == false
+        && request.resource.data.get('socials', {}).get('youtube', {}).get('verified', false) == false
+        && !request.resource.data.keys().hasAny([
+          'badgeNumber',
+          'stripeCustomerId',
+          'stripeSubscriptionId',
+          'plan',
+          'cancelAtPeriodEnd',
+          'status',
+        ]);
+    }
+
+    match /valid_profiles/{userId} {
+      // Public profile pages/search read through Admin SDK APIs.
+      allow get: if isOwner(userId);
+
+      // No client collection scans — use GET /api/search
+      allow list: if false;
+
+      allow create: if profileCreateAllowed(userId);
+
+      allow update: if isOwner(userId)
+        && protectedProfileFieldsUnchanged()
+        && subscriptionStatusChangeAllowed()
+        && socialsVerifiedUnchanged();
+
+      // Account deletion via authenticated API (Admin SDK)
+      allow delete: if false;
+    }
+
+    match /disclosures/{disclosureId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+
+    match /reports/{reportId} {
+      allow read, write: if false;
+    }
+  }
+}

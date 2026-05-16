@@ -1,65 +1,37 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
 import Badge from "@/components/Badge";
 
 export default function SearchPage() {
-  const [users, setUsers] = useState<any[]>([]);
   const [filtered, setFiltered] = useState<any[]>([]);
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  // 🔥 LOAD USERS
   useEffect(() => {
-    const loadUsers = async () => {
+    const q = query.trim();
+    if (!q) {
+      setFiltered([]);
+      setLoading(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
       try {
-        const snap = await getDocs(collection(db, "valid_profiles"));
-
-        const data = snap.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        setUsers(data);
-        setFiltered(data);
+        setLoading(true);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        setFiltered(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("Search load error:", err);
+        setFiltered([]);
       } finally {
         setLoading(false);
       }
-    };
+    }, 300);
 
-    loadUsers();
-  }, []);
-
-  // 🔍 FILTER (NAME + BADGE ONLY)
-  useEffect(() => {
-    const q = query.toLowerCase().trim();
-    const cleanQuery = q.replace("#", "");
-
-    const results = users.filter((user) => {
-      const name = user.displayName?.toLowerCase() || "";
-      const badge = String(user.badgeNumber || "");
-
-      return (
-        name.includes(q) ||
-        badge.includes(cleanQuery)
-      );
-    });
-
-    setFiltered(results);
-  }, [query, users]);
-
-  // 🔄 LOADING
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-gray-400">
-        Loading creators...
-      </div>
-    );
-  }
+    return () => clearTimeout(timer);
+  }, [query]);
 
   return (
     <main className="min-h-screen bg-black text-white px-6 py-10">
@@ -74,14 +46,23 @@ export default function SearchPage() {
         />
       </div>
 
-      {/* ❌ EMPTY */}
-      {filtered.length === 0 && (
-        <div className="text-center text-gray-400 mt-20">
-          No creators found. Try searching by name or badge number.
-        </div>
-      )}
+      {loading && (
+        <div className="text-center text-gray-400 mt-20">Searching...</div>
+      )}
 
-      {/* 🔥 RESULTS */}
+      {!loading && !query.trim() && (
+        <div className="text-center text-gray-400 mt-20">
+          Search by name or badge number to find creators.
+        </div>
+      )}
+
+      {!loading && query.trim() && filtered.length === 0 && (
+        <div className="text-center text-gray-400 mt-20">
+          No creators found. Try searching by name or badge number.
+        </div>
+      )}
+
+      {/* 🔥 RESULTS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
         {filtered.map((user) => {
           const username =

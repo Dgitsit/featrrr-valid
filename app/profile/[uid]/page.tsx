@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
 import { useParams } from "next/navigation";
 import { calculateScore } from "@/utils/calculateScore";
 import CreatorCard from "@/components/CreatorCard";
@@ -22,15 +20,14 @@ export default function ProfilePage() {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const ref = doc(db, "valid_profiles", uid);
-        const snap = await getDoc(ref);
+        const res = await fetch(`/api/profile/${uid}`);
 
-        if (!snap.exists()) {
+        if (!res.ok) {
           setProfile(null);
           return;
         }
 
-        setProfile(snap.data());
+        setProfile(await res.json());
       } catch (err) {
         console.error(err);
       } finally {
