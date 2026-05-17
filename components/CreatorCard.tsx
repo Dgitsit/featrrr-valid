@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import Badge, { getBadgeTier } from "@/components/Badge";
+import TransparencyScore from "@/components/TransparencyScore";
 
 type Creator = {
   id?: string;
@@ -36,130 +38,102 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
     setImageError(false);
   }, [creator.profilePhoto]);
 
-  // ================= BADGE COLOR SYSTEM =================
-  const getScoreStyle = () => {
-    if (score <= 74) {
-      return {
-        text: "text-green-400",
-        bar: "bg-green-500",
-      };
-    }
-    if (score <= 85) {
-      return {
-        text: "text-blue-400",
-        bar: "bg-blue-500",
-      };
-    }
-    if (score <= 92) {
-      return {
-        text: "text-yellow-400",
-        bar: "bg-yellow-500",
-      };
-    }
-    return {
-      text: "bg-gradient-to-r from-purple-400 to-orange-400 text-transparent bg-clip-text",
-      bar: "bg-gradient-to-r from-purple-500 to-orange-400",
-    };
-  };
-
-  const scoreStyle = getScoreStyle();
+  const tier = getBadgeTier(score);
+  const credentialLabel = isPaid ? "Verified Creator" : "Creator Credential";
+  const scoreTone = {
+    green: "text-emerald-300",
+    blue: "text-sky-300",
+    gold: "text-amber-200",
+    gradient:
+      "bg-gradient-to-r from-purple-300 via-fuchsia-300 to-orange-300 bg-clip-text text-transparent",
+  }[tier];
 
   return (
-    <Link href={safeId ? `/profile/${safeId}` : "#"}>
-      <div className="w-full max-w-[260px] mx-auto cursor-pointer">
+    <Link href={safeId ? `/profile/${safeId}` : "#"} className="block w-full min-w-0">
+      <article className="group mx-auto w-full max-w-md min-w-0 cursor-pointer rounded-[1.6rem] bg-gradient-to-br from-purple-500/80 via-fuchsia-500/40 to-orange-400/80 p-[1px] shadow-2xl shadow-purple-950/30 transition duration-300 md:hover:-translate-y-1 md:hover:shadow-orange-950/30">
+        <div className="relative overflow-hidden rounded-[1.55rem] border border-white/10 bg-[#07070d]">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.22),transparent_18rem),radial-gradient(circle_at_bottom_right,rgba(251,146,60,0.16),transparent_16rem)]" />
 
-        {/* GRADIENT BORDER */}
-        <div className="rounded-xl p-[1px] bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400">
+          <div className="relative grid min-w-0 gap-4 p-4 sm:grid-cols-[9.5rem_minmax(0,1fr)]">
+            <div className="relative h-52 min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 sm:h-full">
+              {photo && !imageError ? (
+                <img
+                  src={photo}
+                  alt={`${name} profile`}
+                  className="h-full w-full object-cover"
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-900 to-black text-5xl font-black text-zinc-700">
+                  FV
+                </div>
+              )}
 
-          {/* CARD */}
-          <div className="bg-[#0b0b0f] rounded-xl overflow-hidden shadow-lg">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+              <div className="absolute bottom-3 left-3 rounded-full border border-white/10 bg-black/55 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-200 backdrop-blur">
+                {isPaid ? "Valid" : "Creator"}
+              </div>
+            </div>
 
-            {/* IMAGE */}
-            <div className="relative h-32 w-full bg-gray-900 overflow-hidden">
+            <div className="flex min-w-0 flex-col gap-4">
+              <div className="min-w-0">
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-zinc-500">
+                      {credentialLabel}
+                    </p>
+                    <div className="mt-2 flex min-w-0 items-center gap-2">
+                      <h2 className="min-w-0 truncate text-3xl font-black tracking-tight text-white">
+                        @{name}
+                      </h2>
+                      <Badge score={score} label="Creator score shield" />
+                    </div>
+                    <p className="mt-1 truncate text-sm text-zinc-400">
+                      {isPaid ? "Transparency verified creator" : "Creator trust profile"}
+                    </p>
+                  </div>
 
-              {photo && !imageError ? (
-                <img
-                  src={photo}
-                  alt="profile"
-                  className="w-full h-full object-cover"
-                  onError={() => setImageError(true)}
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-gray-500">
-                  👤
-                </div>
-              )}
+                  <div className="shrink-0 text-right">
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">
+                      Badge ID
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-purple-200">
+                      FV-{badge}
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-              {/* DARK OVERLAY */}
-              <div className="absolute inset-0 bg-black/40" />
+              <TransparencyScore score={score} compact />
+            </div>
+          </div>
 
-              {/* TOP ROW */}
-              <div className="absolute top-2 left-2 right-2 flex justify-between items-center text-[10px]">
-
-                <div className="px-2 py-0.5 rounded bg-black/70 text-gray-300">
-                  #{badge}
-                </div>
-
-                <div
-                  className={`px-2 py-0.5 rounded-full text-[9px] ${
-                    isPaid
-                      ? "bg-gradient-to-r from-purple-500 to-orange-400 text-white"
-                      : "bg-gray-800 text-gray-300"
-                  }`}
-                >
-                  {isPaid ? "VALID" : "FREE"}
-                </div>
-
-              </div>
-
-              {/* NAME */}
-              <div className="absolute bottom-2 left-3 right-3">
-                <h2 className="text-sm font-semibold truncate text-white">
-                  @{name}
-                </h2>
-              </div>
-
-            </div>
-
-            {/* SCORE */}
-            <div className="px-4 py-3">
-
-              <p className="text-[9px] text-gray-400 tracking-wide">
-                SOCIAL CREDIBILITY SCORE
-              </p>
-
-              <div className="flex items-end gap-2 mt-1">
-
-                <span className={`text-2xl font-bold ${scoreStyle.text}`}>
-                  {score}
-                </span>
-
-                <span className="text-[10px] text-gray-500 mb-[2px]">
-                  /100
-                </span>
-
-              </div>
-
-              {/* PROGRESS BAR */}
-              <div className="w-full h-1.5 bg-gray-800 rounded-full mt-2 overflow-hidden">
-                <div
-                  className={`h-1.5 rounded-full ${scoreStyle.bar}`}
-                  style={{ width: `${score}%` }}
-                />
-              </div>
-
-              {/* LABEL UNDER SCORE */}
-              <p className="text-[10px] text-gray-500 mt-2">
-                {isPaid
-                  ? "Transparency verified"
-                  : "Upgrade for full credibility"}
-              </p>
-
-            </div>
-
-          </div>
-        </div>
-      </div>
-    </Link>
+          <div className="relative grid grid-cols-3 border-t border-white/10 bg-white/[0.025]">
+            <div className="min-w-0 px-4 py-3">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                Shield
+              </p>
+              <p className={`mt-1 text-sm font-bold ${scoreTone}`}>
+                {tier === "gradient" ? "Premium" : tier}
+              </p>
+            </div>
+            <div className="min-w-0 border-x border-white/10 px-4 py-3">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                Status
+              </p>
+              <p className="mt-1 truncate text-sm font-bold text-white">
+                {isPaid ? "Verified" : "Active"}
+              </p>
+            </div>
+            <div className="min-w-0 px-4 py-3">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                Score
+              </p>
+              <p className="mt-1 text-sm font-bold text-white">{score}/100</p>
+            </div>
+          </div>
+        </div>
+      </article>
+    </Link>
   );
 }

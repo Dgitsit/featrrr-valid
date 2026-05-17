@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Badge from "@/components/Badge";
+import CreatorCard from "@/components/CreatorCard";
 
 export default function SearchPage() {
   const [filtered, setFiltered] = useState<any[]>([]);
@@ -63,68 +63,35 @@ export default function SearchPage() {
       )}
 
       {/* 🔥 RESULTS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+      <div className="grid min-w-0 grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
         {filtered.map((user) => {
-          const username =
-            user.displayName ||
-            "user";
-
           const score = user.score ?? 0;
 
           return (
-            <div
-              key={user.id}
-              className="bg-[#111] p-4 rounded-xl border border-gray-800"
-            >
-              {/* USERNAME */}
-              <h3 className="text-lg font-semibold">@{username}</h3>
+            <div key={user.id} className="min-w-0 space-y-2">
+              <CreatorCard
+                creator={{
+                  id: user.id,
+                  displayName: user.displayName || "user",
+                  score,
+                  status: user.status,
+                  subscriptionStatus: user.subscriptionStatus,
+                  profilePhoto: user.profilePhoto || "",
+                  badgeNumber: user.badgeNumber,
+                }}
+              />
 
-              {/* 🔥 BADGE NUMBER */}
-              {user.badgeNumber && (
-                <p
-                  onClick={() =>
-                    navigator.clipboard.writeText(
-                      String(user.badgeNumber)
-                    )
-                  }
-                  className="text-xs text-gray-500 mt-1 cursor-pointer hover:text-white"
-                >
-                  Badge #{user.badgeNumber} (tap to copy)
-                </p>
-              )}
-
-              {/* 🔥 BADGES */}
-              <div className="flex gap-2 mt-2">
-                {user.subscriptionStatus === "active" && (
-                  <Badge type="premium" />
-                )}
-
-                {user?.socials?.instagram?.verified && (
-                  <Badge type="verified" />
-                )}
-              </div>
-
-              {/* SCORE */}
-              <div className="mt-3 text-sm text-gray-400">
-                {score}/100
-              </div>
-
-              {/* PROGRESS */}
-              <div className="w-full bg-gray-800 h-2 rounded mt-1">
-                <div
-                  className="h-2 rounded bg-gradient-to-r from-purple-500 to-orange-400"
-                  style={{ width: `${score}%` }}
-                />
-              </div>
-
-              {/* PROFILE LINK */}
-              <a
-                href={`/profile/${user.id}`}
-                className="block mt-4 text-sm text-purple-400 hover:underline"
-              >
-                View Profile →
-              </a>
-            </div>
+              {user.badgeNumber && (
+                <button
+                  onClick={() =>
+                    navigator.clipboard.writeText(String(user.badgeNumber))
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-zinc-500 transition hover:text-white"
+                >
+                  Badge #{user.badgeNumber} (tap to copy)
+                </button>
+              )}
+            </div>
           );
         })}
       </div>

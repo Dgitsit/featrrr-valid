@@ -5,6 +5,8 @@ import { auth, db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { calculateScore } from "@/utils/calculateScore";
 import CreatorCard from "@/components/CreatorCard";
+import ProfileImageUpload from "@/components/ProfileImageUpload";
+import ScoreBreakdown from "@/components/ScoreBreakdown";
 import { uploadProfileImage } from "@/lib/upload";
 
 export const dynamic = "force-dynamic";
@@ -231,17 +233,25 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white px-4 py-6">
-      <div className="max-w-md mx-auto space-y-6">
+    <div className="min-h-screen w-full overflow-x-hidden bg-black text-white px-4 py-6">
+      <div className="mx-auto max-w-md space-y-6">
 
         <CreatorCard creator={creatorData} />
+        <ScoreBreakdown
+          profile={{
+            ...profile,
+            photoURL: preview || profile.photoURL,
+            postDisclosures: profile.postDisclosures || [],
+            contextDisclosures,
+          }}
+        />
 
         {/* ACTIONS */}
         <div className="space-y-2">
-          <label className="block bg-gray-800 p-3 rounded cursor-pointer text-sm">
-            Upload Photo (+3 pts)
-            <input hidden type="file" onChange={(e) => e.target.files && handleUpload(e.target.files[0])} />
-          </label>
+          <ProfileImageUpload
+            currentImage={preview || profile.photoURL}
+            onUpload={handleUpload}
+          />
 
           <button onClick={handleShare} className="w-full bg-purple-500 p-2 rounded text-sm">
             Share Profile

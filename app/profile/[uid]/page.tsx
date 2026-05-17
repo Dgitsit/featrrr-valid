@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { calculateScore } from "@/utils/calculateScore";
 import CreatorCard from "@/components/CreatorCard";
+import ScoreBreakdown from "@/components/ScoreBreakdown";
 import html2canvas from "html2canvas";
 
 export const dynamic = "force-dynamic";
@@ -111,14 +112,20 @@ export default function ProfilePage() {
   };
 
   return (
-    <main className="min-h-screen bg-black text-white flex flex-col items-center py-10 px-6 gap-6">
+    <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-black text-white flex flex-col items-center py-10 px-5 sm:px-6 gap-6">
 
       {/* ================= CREATOR CARD ================= */}
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-md min-w-0 overflow-hidden">
         <CreatorCard creator={creatorData} />
+        <div className="mt-4">
+          <ScoreBreakdown profile={profile} />
+        </div>
 
         {/* 🔥 HIDDEN EXPORT CARD */}
-        <div className="fixed -left-[9999px]">
+        <div
+          aria-hidden="true"
+          className="fixed left-0 top-0 h-px w-px overflow-hidden pointer-events-none"
+        >
           <div
             ref={cardRef}
             className="w-[1080px] h-[1080px] flex items-center justify-center bg-black"
@@ -151,17 +158,17 @@ export default function ProfilePage() {
         )}
 
         {/* 🔥 SHARE BUTTONS */}
-        <div className="flex gap-2 mt-4">
+        <div className="flex w-full min-w-0 gap-2 mt-4">
           <button
             onClick={handleDownloadCard}
-            className="flex-1 bg-purple-500 p-2 rounded text-sm"
+            className="min-w-0 flex-1 bg-purple-500 p-2 rounded text-sm"
           >
             Download Card
           </button>
 
           <button
             onClick={handleShareLink}
-            className="flex-1 bg-orange-500 p-2 rounded text-sm"
+            className="min-w-0 flex-1 bg-orange-500 p-2 rounded text-sm"
           >
             Share Profile
           </button>
@@ -169,7 +176,7 @@ export default function ProfilePage() {
       </div>
 
       {/* ================= GRID ================= */}
-      <div className="w-full max-w-5xl grid grid-cols-3 gap-2">
+      <div className="w-full max-w-5xl min-w-0 overflow-hidden grid grid-cols-3 gap-2">
 
         {posts.map((post: any, i: number) => (
           <div
@@ -204,8 +211,8 @@ export default function ProfilePage() {
 
       {/* ================= MODAL ================= */}
       {activePost && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-[#111] p-4 rounded-xl w-full max-w-md space-y-3">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 px-4">
+          <div className="bg-[#111] p-4 rounded-xl w-full max-w-md min-w-0 overflow-hidden space-y-3">
 
             {activePost.previewImage && (
               <img
@@ -261,7 +268,7 @@ export default function ProfilePage() {
       )}
 
       {/* CTA */}
-      <div className="text-center max-w-sm text-gray-400 text-sm">
+      <div className="w-full max-w-sm min-w-0 text-center text-gray-400 text-sm">
         Join Featrrr Valid to build trust through transparency.
       </div>
 

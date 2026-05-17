@@ -54,14 +54,14 @@ export default function VerifyPage() {
   };
 
   return (
-    <main className="min-h-screen bg-black text-white flex flex-col items-center px-6 py-12">
+    <main className="min-h-screen bg-black text-white flex flex-col items-center px-6 py-12 overflow-x-hidden">
 
       <h1 className="text-2xl font-semibold mb-6">
         Verify Creator
       </h1>
 
       {/* SEARCH */}
-      <div className="flex gap-2 w-full max-w-md mb-8">
+      <div className="flex w-full max-w-md min-w-0 flex-col gap-3 mb-8 sm:flex-row sm:gap-2">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -69,12 +69,12 @@ export default function VerifyPage() {
             if (e.key === "Enter") handleSearch();
           }}
           placeholder="Enter name or badge #"
-          className="flex-1 bg-[#111] border border-gray-700 px-3 py-2 rounded text-white"
+          className="w-full min-w-0 flex-1 bg-[#111] border border-gray-700 px-3 py-3 sm:py-2 rounded text-white"
         />
 
         <button
           onClick={() => handleSearch()}
-          className="bg-purple-500 px-4 py-2 rounded"
+          className="w-full shrink-0 bg-purple-500 px-4 py-3 sm:w-auto sm:py-2 rounded"
         >
           Search
         </button>
@@ -85,7 +85,7 @@ export default function VerifyPage() {
 
       {/* RESULTS */}
       {!loading && results.length > 0 && (
-        <div className="w-full max-w-5xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        <div className="w-full max-w-5xl min-w-0 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
 
           {results.map((creator) => (
             <CreatorCard
