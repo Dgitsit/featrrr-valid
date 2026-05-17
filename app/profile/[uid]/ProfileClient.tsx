@@ -62,6 +62,7 @@ export default function ProfileClient({ uid }: { uid: string }) {
     subscriptionStatus: profile.subscriptionStatus || "free",
     profilePhoto: profile.photoURL || "",
     badgeNumber: profile.badgeNumber || "",
+    bio: profile.bio || "",
   };
 
   const posts = (profile?.postDisclosures || []).sort((a: any, b: any) => {
@@ -120,17 +121,37 @@ export default function ProfileClient({ uid }: { uid: string }) {
 
   const handleShareLink = async () => {
     const url = window.location.href;
+    let shared = false;
 
-    if (navigator.share) {
-      await navigator.share({
-        title: "Check this creator",
-        url,
-      });
-    } else {
-      await navigator.clipboard.writeText(url);
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "Check this creator",
+          url,
+        });
+        shared = true;
+      } else {
+        await navigator.clipboard.writeText(url);
+        shared = true;
+      }
+    } catch (err: any) {
+      if (err?.name === "AbortError") {
+        setShareFeedback("Share canceled");
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(url);
+        shared = true;
+      } catch {
+        setShareFeedback("Share unavailable. You can copy the URL from your browser.");
+        return;
+      }
     }
 
-    await recordShareBoost();
+    if (shared) {
+      await recordShareBoost();
+    }
   };
 
   return (

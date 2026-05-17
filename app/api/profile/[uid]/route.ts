@@ -25,6 +25,7 @@ export async function GET(
       status: data.status || "active",
       subscriptionStatus: data.subscriptionStatus || "free",
       photoURL: data.photoURL || "",
+      bio: data.bio || "",
       badgeNumber: data.badgeNumber || "",
       postDisclosures: data.postDisclosures || [],
       contextDisclosures: data.contextDisclosures || [],

@@ -8,6 +8,7 @@ import TransparencyScore from "@/components/TransparencyScore";
 type Creator = {
   id?: string;
   displayName?: string;
+  bio?: string;
   score?: number;
   status?: string;
   subscriptionStatus?: string;
@@ -20,6 +21,7 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
 
   const safeId = creator.id || "";
   const name = creator.displayName || "user";
+  const bio = creator.bio?.trim();
 
   // ✅ SAFE SCORE
   const scoreRaw = Number(creator.score);
@@ -103,6 +105,12 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
                   </div>
                 </div>
               </div>
+
+              {bio && (
+                <p className="line-clamp-3 rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-2 text-sm leading-relaxed text-zinc-300">
+                  {bio}
+                </p>
+              )}
 
               <TransparencyScore score={score} compact />
             </div>

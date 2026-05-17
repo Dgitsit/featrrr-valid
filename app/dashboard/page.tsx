@@ -7,6 +7,10 @@ import { calculateScore } from "@/utils/calculateScore";
 import CreatorCard from "@/components/CreatorCard";
 import ProfileImageUpload from "@/components/ProfileImageUpload";
 import ScoreBreakdown from "@/components/ScoreBreakdown";
+import CoreDisclosurePanel, {
+  CoreDisclosure,
+} from "@/components/CoreDisclosurePanel";
+import TransparencyProgress from "@/components/TransparencyProgress";
 import { uploadProfileImage } from "@/lib/upload";
 
 export const dynamic = "force-dynamic";
@@ -19,29 +23,20 @@ export default function Dashboard() {
   const [preview, setPreview] = useState<string | null>(null);
 
   const [showPostModal, setShowPostModal] = useState(false);
-  const [showCoreModal, setShowCoreModal] = useState(false);
 
   const [activePostIndex, setActivePostIndex] = useState<number | null>(null);
 
   const [newText, setNewText] = useState("");
   const [newLink, setNewLink] = useState("");
+  const [bio, setBio] = useState("");
+  const [bioSaving, setBioSaving] = useState(false);
 
   const [ogData, setOgData] = useState<any>(null);
   const [ogLoading, setOgLoading] = useState(false);
 
   const [contextDisclosures, setContextDisclosures] = useState<
-    { key: string; label: string; note?: string }[]
+    CoreDisclosure[]
   >([]);
-
-  const disclosureOptions = [
-    { key: "performanceDrugs", label: "Uses performance enhancement drugs" },
-    { key: "cosmeticSurgery", label: "Cosmetic surgery" },
-    { key: "notOriginalContent", label: "Not original content" },
-    { key: "dueDiligence", label: "Due diligence on sponsored content" },
-    { key: "sourcesCited", label: "Sources cited" },
-    { key: "notOwnedResults", label: "Not all owned results" },
-    { key: "notAccredited", label: "Not accredited" },
-  ];
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (user) => {
@@ -53,6 +48,7 @@ export default function Dashboard() {
 
       setProfile(data);
       setContextDisclosures(data.contextDisclosures || []);
+      setBio(data.bio || "");
       setLoading(false);
     });
 
@@ -100,20 +96,44 @@ export default function Dashboard() {
 
   const handleCopyLink = async () => {
     const url = `${window.location.origin}/profile/${auth.currentUser?.uid}`;
-    await navigator.clipboard.writeText(url);
-    await recordShareBoost();
+    try {
+      await navigator.clipboard.writeText(url);
+      setFeedback("Link copied");
+    } catch {
+      setFeedback("Copy unavailable. You can copy the URL from your browser.");
+    }
   };
 
   const handleShare = async () => {
     const url = `${window.location.origin}/profile/${auth.currentUser?.uid}`;
+    let shared = false;
 
-    if (navigator.share) {
-      await navigator.share({ title: "My Profile", url });
-    } else {
-      await navigator.clipboard.writeText(url);
-    }
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "My Profile", url });
+        shared = true;
+      } else {
+        await navigator.clipboard.writeText(url);
+        shared = true;
+      }
+    } catch (err: any) {
+      if (err?.name === "AbortError") {
+        setFeedback("Share canceled");
+        return;
+      }
 
-    await recordShareBoost();
+      try {
+        await navigator.clipboard.writeText(url);
+        shared = true;
+      } catch {
+        setFeedback("Share unavailable. You can copy the URL from your browser.");
+        return;
+      }
+    }
+
+    if (shared) {
+      await recordShareBoost();
+    }
   };
 
   // ================= UPLOAD =================
@@ -144,6 +164,26 @@ export default function Dashboard() {
     }
 
     setPreview(url);
+  };
+
+  const saveBio = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const cleanBio = bio.trim().slice(0, 220);
+    setBioSaving(true);
+
+    try {
+      await updateDoc(doc(db, "valid_profiles", user.uid), {
+        bio: cleanBio,
+      });
+
+      setBio(cleanBio);
+      setProfile((prev: any) => ({ ...prev, bio: cleanBio }));
+      setFeedback("Bio saved");
+    } finally {
+      setBioSaving(false);
+    }
   };
 
   // ================= OG =================
@@ -224,23 +264,20 @@ export default function Dashboard() {
   };
 
   // ================= CORE =================
-  const handleAddDisclosure = (item: any) => {
-    if (contextDisclosures.some((d) => d.key === item.key)) return;
+  const handleToggleDisclosure = (item: CoreDisclosure) => {
+    if (contextDisclosures.some((d) => d.key === item.key)) {
+      handleDeleteDisclosure(item.key);
+      return;
+    }
 
-    setContextDisclosures([
-      ...contextDisclosures,
-      { key: item.key, label: item.label, note: "" },
-    ]);
-  };
+    setContextDisclosures([
+      ...contextDisclosures,
+      { key: item.key, label: item.label, note: "" },
+    ]);
+  };
 
   const handleDeleteDisclosure = (key: string) => {
     setContextDisclosures(contextDisclosures.filter((d) => d.key !== key));
-  };
-
-  const handleEditNote = (key: string, value: string) => {
-    setContextDisclosures((prev) =>
-      prev.map((d) => (d.key === key ? { ...d, note: value } : d))
-    );
   };
 
   const saveCore = async () => {
@@ -250,7 +287,7 @@ export default function Dashboard() {
     });
 
     setProfile((prev: any) => ({ ...prev, contextDisclosures }));
-    setShowCoreModal(false);
+    setFeedback("Core disclosures saved");
   };
 
   if (loading || !profile) {
@@ -264,6 +301,7 @@ export default function Dashboard() {
     subscriptionStatus: profile.subscriptionStatus,
     profilePhoto: preview || profile.photoURL,
     badgeNumber: profile.badgeNumber,
+    bio: profile.bio,
   };
   const shareBoostPoints = Math.min(Number(profile.shareBoostPoints) || 0, 3);
   const shareBoostMaxed = shareBoostPoints >= 3;
@@ -273,40 +311,98 @@ export default function Dashboard() {
       <div className="mx-auto max-w-md space-y-6">
 
         <CreatorCard creator={creatorData} />
-        <ScoreBreakdown
-          profile={{
-            ...profile,
-            photoURL: preview || profile.photoURL,
-            postDisclosures: profile.postDisclosures || [],
-            contextDisclosures,
-          }}
-        />
 
         {/* ACTIONS */}
-        <div className="space-y-2">
+        <div className="space-y-3">
+          <div className="flex gap-2">
           <ProfileImageUpload
             currentImage={preview || profile.photoURL}
             onUpload={handleUpload}
+            variant="action"
           />
 
-          <button onClick={handleShare} className="w-full bg-purple-500 p-2 rounded text-sm">
-            Share your Valid profile
+          <button
+            onClick={handleShare}
+            className="flex min-h-16 flex-1 flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/[0.055] px-3 py-2 text-center text-xs transition hover:bg-white/[0.09]"
+          >
+            <span className="text-lg leading-none">↗</span>
+            <span className="mt-1 font-semibold text-white">Share</span>
+            <span className="text-[10px] font-semibold text-emerald-300">
+              {shareBoostMaxed ? "max" : "+1"}
+            </span>
           </button>
 
-          <button onClick={handleCopyLink} className="w-full bg-gray-700 p-2 rounded text-sm">
-            Copy Link
+          <button
+            onClick={handleCopyLink}
+            className="flex min-h-16 flex-1 flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/[0.055] px-3 py-2 text-center text-xs transition hover:bg-white/[0.09]"
+          >
+            <span className="text-lg leading-none">⛓</span>
+            <span className="mt-1 font-semibold text-white">Copy</span>
+            <span className="text-[10px] font-semibold text-zinc-500">link</span>
           </button>
+          </div>
 
           <p className="text-center text-xs text-zinc-500">
             {shareBoostMaxed
               ? "Share boost maxed."
               : "Earn up to 3 trust points by sharing your Valid profile."}
           </p>
-
-          <button onClick={() => setShowCoreModal(true)} className="w-full bg-gray-800 p-2 rounded text-sm">
-            Core Disclosures (+2 pts each)
-          </button>
         </div>
+
+        <section className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                Creator Bio
+              </p>
+              <h2 className="mt-1 text-base font-semibold text-white">
+                Add your public summary
+              </h2>
+            </div>
+            <span className="text-xs text-zinc-500">{bio.length}/220</span>
+          </div>
+          <textarea
+            value={bio}
+            maxLength={220}
+            onChange={(e) => setBio(e.target.value)}
+            placeholder="Tell brands and followers what you create, who you help, and what you stand for."
+            className="mt-3 min-h-24 w-full resize-none rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-purple-300/50"
+          />
+          <button
+            onClick={saveBio}
+            disabled={bioSaving}
+            className="mt-3 w-full rounded-xl bg-purple-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {bioSaving ? "Saving..." : "Save Bio"}
+          </button>
+        </section>
+
+        <CoreDisclosurePanel
+          selected={contextDisclosures}
+          onToggle={handleToggleDisclosure}
+          onRemove={handleDeleteDisclosure}
+          onSave={saveCore}
+        />
+
+        <TransparencyProgress
+          profile={{
+            ...profile,
+            bio,
+            photoURL: preview || profile.photoURL,
+            postDisclosures: profile.postDisclosures || [],
+          }}
+          contextDisclosures={contextDisclosures}
+        />
+
+        <ScoreBreakdown
+          profile={{
+            ...profile,
+            bio,
+            photoURL: preview || profile.photoURL,
+            postDisclosures: profile.postDisclosures || [],
+            contextDisclosures,
+          }}
+        />
 
         {/* POSTS */}
         <div className="grid grid-cols-3 gap-2">
@@ -383,58 +479,6 @@ export default function Dashboard() {
 
               <button onClick={resetPostModal} className="w-full bg-gray-700 p-2 rounded">
                 Close
-              </button>
-
-            </div>
-          </div>
-        )}
-
-        {/* CORE MODAL */}
-        {showCoreModal && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
-            <div className="bg-[#111] p-4 rounded w-full max-w-sm space-y-3">
-
-              {disclosureOptions.map((item) => {
-                const exists = contextDisclosures.some((d) => d.key === item.key);
-
-                return (
-                  <button
-                    key={item.key}
-                    disabled={exists}
-                    onClick={() => handleAddDisclosure(item)}
-                    className={`w-full p-2 text-left border rounded ${
-                      exists ? "border-gray-800 text-gray-600" : "border-gray-700"
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-
-              {contextDisclosures.map((d) => (
-                <div key={d.key} className="border border-gray-800 p-2 rounded space-y-2">
-                  <div className="flex justify-between text-sm">
-                    {d.label}
-                    <button onClick={() => handleDeleteDisclosure(d.key)} className="text-red-400 text-xs">
-                      Remove
-                    </button>
-                  </div>
-
-                  <textarea
-                    value={d.note || ""}
-                    onChange={(e) => handleEditNote(d.key, e.target.value)}
-                    placeholder="Optional note..."
-                    className="w-full p-2 bg-black border border-gray-700 rounded text-xs"
-                  />
-                </div>
-              ))}
-
-              <button onClick={saveCore} className="w-full bg-purple-500 p-2 rounded">
-                Save
-              </button>
-
-              <button onClick={() => setShowCoreModal(false)} className="w-full bg-gray-700 p-2 rounded">
-                Cancel
               </button>
 
             </div>

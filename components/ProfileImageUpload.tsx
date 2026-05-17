@@ -60,9 +60,11 @@ async function getCroppedImageFile(
 export default function ProfileImageUpload({
   currentImage,
   onUpload,
+  variant = "panel",
 }: {
   currentImage?: string;
   onUpload: (file: File) => Promise<void> | void;
+  variant?: "panel" | "action";
 }) {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [fileName, setFileName] = useState("profile.jpg");
@@ -115,30 +117,44 @@ export default function ProfileImageUpload({
 
   return (
     <>
-      <label className="block cursor-pointer rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-sm transition hover:bg-white/[0.09]">
-        <span className="flex items-center gap-3">
-          <span className="h-12 w-12 overflow-hidden rounded-full border border-white/10 bg-zinc-900">
-            {currentImage ? (
-              <img
-                src={currentImage}
-                alt="Current profile"
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <span className="flex h-full w-full items-center justify-center text-xs font-black text-zinc-600">
-                FV
+      <label
+        className={
+          variant === "action"
+            ? "flex min-h-16 flex-1 cursor-pointer flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/[0.055] px-3 py-2 text-center text-xs transition hover:bg-white/[0.09]"
+            : "block cursor-pointer rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-sm transition hover:bg-white/[0.09]"
+        }
+      >
+        {variant === "action" ? (
+          <>
+            <span className="text-lg leading-none">📷</span>
+            <span className="mt-1 font-semibold text-white">Photo</span>
+            <span className="text-[10px] font-semibold text-emerald-300">+3</span>
+          </>
+        ) : (
+          <span className="flex items-center gap-3">
+            <span className="h-12 w-12 overflow-hidden rounded-full border border-white/10 bg-zinc-900">
+              {currentImage ? (
+                <img
+                  src={currentImage}
+                  alt="Current profile"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center text-xs font-black text-zinc-600">
+                  FV
+                </span>
+              )}
+            </span>
+            <span className="min-w-0">
+              <span className="block font-semibold text-white">
+                Upload Photo (+3 pts)
               </span>
-            )}
-          </span>
-          <span className="min-w-0">
-            <span className="block font-semibold text-white">
-              Upload Photo (+3 pts)
-            </span>
-            <span className="block text-xs text-zinc-500">
-              Crop and position your credential image.
+              <span className="block text-xs text-zinc-500">
+                Crop and position your credential image.
+              </span>
             </span>
           </span>
-        </span>
+        )}
         <input hidden type="file" accept="image/*" onChange={handleSelect} />
       </label>
 
