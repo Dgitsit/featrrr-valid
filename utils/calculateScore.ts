@@ -54,6 +54,11 @@ export function calculateScore(profile: any) {
   }
 
   // =========================
+  // 🔗 PROFILE SHARES (+1 each, max 3)
+  // =========================
+  score += Math.min(Number(profile?.shareBoostPoints) || 0, 3);
+
+  // =========================
   // 🧠 ACTIVITY BONUS
   // =========================
   if (lastActivity) {

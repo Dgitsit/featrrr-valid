@@ -31,6 +31,9 @@ export async function GET(
       contextNotes: data.contextNotes || "",
       contextUpdatedAt: data.contextUpdatedAt || null,
       socials: data.socials || {},
+      shareBoostCount: data.shareBoostCount || 0,
+      shareBoostPoints: data.shareBoostPoints || 0,
+      lastSharedAt: data.lastSharedAt || null,
     });
   } catch (err) {
     console.error("Profile API error:", err);

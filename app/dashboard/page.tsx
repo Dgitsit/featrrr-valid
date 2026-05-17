@@ -65,10 +65,43 @@ export default function Dashboard() {
   });
 
   // ================= SHARE =================
+  const recordShareBoost = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const idToken = await user.getIdToken();
+    const res = await fetch("/api/share-profile", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+    });
+
+    if (res.status === 401) {
+      setFeedback("Session expired. Please log in again.");
+      return;
+    }
+
+    if (!res.ok) {
+      setFeedback("Profile shared, but boost was not recorded.");
+      return;
+    }
+
+    const data = await res.json();
+    setProfile((prev: any) => ({
+      ...prev,
+      shareBoostCount: data.shareBoostCount,
+      shareBoostPoints: data.shareBoostPoints,
+      lastSharedAt: data.lastSharedAt,
+    }));
+    setFeedback(data.maxed ? "Share boost maxed." : "+1 share trust point added.");
+  };
+
   const handleCopyLink = async () => {
     const url = `${window.location.origin}/profile/${auth.currentUser?.uid}`;
     await navigator.clipboard.writeText(url);
-    setFeedback("Link copied");
+    await recordShareBoost();
   };
 
   const handleShare = async () => {
@@ -78,8 +111,9 @@ export default function Dashboard() {
       await navigator.share({ title: "My Profile", url });
     } else {
       await navigator.clipboard.writeText(url);
-      setFeedback("Link copied");
     }
+
+    await recordShareBoost();
   };
 
   // ================= UPLOAD =================
@@ -231,6 +265,8 @@ export default function Dashboard() {
     profilePhoto: preview || profile.photoURL,
     badgeNumber: profile.badgeNumber,
   };
+  const shareBoostPoints = Math.min(Number(profile.shareBoostPoints) || 0, 3);
+  const shareBoostMaxed = shareBoostPoints >= 3;
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-black text-white px-4 py-6">
@@ -254,12 +290,18 @@ export default function Dashboard() {
           />
 
           <button onClick={handleShare} className="w-full bg-purple-500 p-2 rounded text-sm">
-            Share Profile
+            Share your Valid profile
           </button>
 
           <button onClick={handleCopyLink} className="w-full bg-gray-700 p-2 rounded text-sm">
             Copy Link
           </button>
+
+          <p className="text-center text-xs text-zinc-500">
+            {shareBoostMaxed
+              ? "Share boost maxed."
+              : "Earn up to 3 trust points by sharing your Valid profile."}
+          </p>
 
           <button onClick={() => setShowCoreModal(true)} className="w-full bg-gray-800 p-2 rounded text-sm">
             Core Disclosures (+2 pts each)
